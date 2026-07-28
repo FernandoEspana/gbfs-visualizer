@@ -1,0 +1,10 @@
+{
+  "/api/gbfs": {
+    "target": "https://data.lime.bike",
+    "secure": true,
+    "changeOrigin": true,
+    "pathRewrite": {
+      "^/api/gbfs": "/api/partners/v2/gbfs/new_york"
+    }
+  }
+}
