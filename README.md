@@ -120,17 +120,27 @@ MapLibreService ........ The ONLY code that imports maplibre-gl. Wraps the map
 ### Domain model
 
 ```typescript
+export type VehicleStatus = 'available' | 'reserved' | 'disabled';
+
 export interface Vehicle {
   id: string;
   coordinates: { lat: number; lon: number };
-  status: 'available' | 'reserved' | 'disabled';
+  status: VehicleStatus;
+  isReserved: boolean;
+  isDisabled: boolean;
   vehicleTypeId?: string;
   vehicleType?: string;
   currentRangeMeters?: number;
-  isReserved: boolean;
-  isDisabled: boolean;
-  lastReported?: number;
-  stationId?: string;
+  lastReported?: number; // epoch milliseconds
+  stationId?: string; // never populated by a free-floating feed
+}
+
+/** One fetch of the feed. `ttlMs` is what the polling interval aligns to. */
+export interface VehicleSnapshot {
+  vehicles: readonly Vehicle[];
+  lastUpdated: number; // epoch milliseconds
+  ttlMs: number;
+  droppedCount: number;
 }
 ```
 
@@ -139,10 +149,25 @@ a station-based provider without changing the contract. `currentRangeMeters` and
 `vehicleType` are optional because they are provider extensions, not guaranteed
 by the spec.
 
+**All domain timestamps are epoch milliseconds.** GBFS 2.2 sends POSIX seconds
+and GBFS 3.x sends RFC3339 strings; both are normalised at the mapper boundary
+so no consumer has to know which dialect produced them.
+
+`GbfsMapper` returns a `VehicleSnapshot` rather than a bare `Vehicle[]` because
+`ttl` and `last_updated` live on the raw envelope. Discarding them would force
+the polling layer to re-read the raw payload and the mapper would stop being the
+single translation boundary.
+
+**The failure contract has two levels.** A malformed item — no id, a missing or
+out-of-range coordinate — is dropped and tallied in `droppedCount`, so one bad
+record out of thousands cannot blank the map. An unusable envelope throws
+`GbfsMapperError`, because a feed fault is an error state, not an empty fleet.
+
 ## Real-time updates
 
 The feed is polled on an interval aligned with the GBFS `ttl` (60s). Each tick
-fetches the latest payload, maps it to `Vehicle[]`, and pushes it into the store,
+fetches the latest payload, maps it to a `VehicleSnapshot`, and pushes it into
+the store,
 which in turn triggers a single `setData()` call on the map source. Errors are
 caught by the polling stream, surfaced through `error()` in the store, and
 retried with backoff without tearing down the map.
