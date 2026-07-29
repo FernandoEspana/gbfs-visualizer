@@ -1,0 +1,174 @@
+{
+  "last_updated": 1785363766,
+  "ttl": 60,
+  "version": "2.2",
+  "data": {
+    "bikes": [
+      {
+        "bike_id": "41cd0a00-9cc3-4ec8-90a6-e4df2e6c17f7",
+        "lat": 40.668495,
+        "lon": -73.796385,
+        "is_reserved": false,
+        "is_disabled": false,
+        "current_range_meters": 0,
+        "vehicle_type_id": "2",
+        "last_reported": 1785363718,
+        "vehicle_type": "scooter"
+      },
+      {
+        "bike_id": "00a72955-3d9c-4205-b6e1-0181b5551ad8",
+        "lat": 40.839081,
+        "lon": -73.817284,
+        "is_reserved": false,
+        "is_disabled": false,
+        "current_range_meters": 2639,
+        "vehicle_type_id": "2",
+        "last_reported": 1785363717,
+        "vehicle_type": "scooter"
+      },
+      {
+        "bike_id": "3a3e2bf9-7db7-4ba7-9ef1-74928b6e63e8",
+        "lat": 40.865321,
+        "lon": -73.86759,
+        "is_reserved": false,
+        "is_disabled": false,
+        "current_range_meters": 3718,
+        "vehicle_type_id": "2",
+        "last_reported": 1785363718,
+        "vehicle_type": "scooter"
+      },
+      {
+        "bike_id": "11ee6300-d67e-49bc-bd9c-60d7e1855453",
+        "lat": 40.807577,
+        "lon": -73.855045,
+        "is_reserved": false,
+        "is_disabled": false,
+        "current_range_meters": 5230,
+        "vehicle_type_id": "2",
+        "last_reported": 1785363718,
+        "vehicle_type": "scooter"
+      },
+      {
+        "bike_id": "cad6cf6c-cceb-4b19-9bf6-50067e20da17",
+        "lat": 40.713735,
+        "lon": -73.754208,
+        "is_reserved": false,
+        "is_disabled": false,
+        "current_range_meters": 7548,
+        "vehicle_type_id": "2",
+        "last_reported": 1785363718,
+        "vehicle_type": "scooter"
+      },
+      {
+        "bike_id": "1121d5f2-1085-432a-89fe-011d84d86a24",
+        "lat": 40.84319,
+        "lon": -73.86448,
+        "is_reserved": false,
+        "is_disabled": false,
+        "current_range_meters": 10718,
+        "vehicle_type_id": "2",
+        "last_reported": 1785363717,
+        "vehicle_type": "scooter"
+      },
+      {
+        "bike_id": "e1356b75-af5b-45fb-91d5-6d5521b30af7",
+        "lat": 40.701365,
+        "lon": -73.780116,
+        "is_reserved": false,
+        "is_disabled": false,
+        "current_range_meters": 13486,
+        "vehicle_type_id": "2",
+        "last_reported": 1785363718,
+        "vehicle_type": "scooter"
+      },
+      {
+        "bike_id": "4b691d3a-03a9-4ba2-bb11-b03e54ef4c49",
+        "lat": 40.884775,
+        "lon": -73.85357,
+        "is_reserved": false,
+        "is_disabled": false,
+        "current_range_meters": 17107,
+        "vehicle_type_id": "2",
+        "last_reported": 1785363717,
+        "vehicle_type": "scooter"
+      },
+      {
+        "bike_id": "3d8c6364-1775-4b3d-9272-612fae53965a",
+        "lat": 40.68258,
+        "lon": -73.803099,
+        "is_reserved": false,
+        "is_disabled": false,
+        "current_range_meters": 20390,
+        "vehicle_type_id": "2",
+        "last_reported": 1785363717,
+        "vehicle_type": "scooter"
+      },
+      {
+        "bike_id": "91838368-55aa-4c98-87af-0d000921f51c",
+        "lat": 40.675327,
+        "lon": -73.766323,
+        "is_reserved": false,
+        "is_disabled": false,
+        "current_range_meters": 24188,
+        "vehicle_type_id": "2",
+        "last_reported": 1785363717,
+        "vehicle_type": "scooter"
+      },
+      {
+        "bike_id": "4b10f9cb-31ca-4950-8f23-6d900f37ae97",
+        "lat": 40.848403,
+        "lon": -73.84225,
+        "is_reserved": false,
+        "is_disabled": false,
+        "current_range_meters": 27214,
+        "vehicle_type_id": "2",
+        "last_reported": 1785363717,
+        "vehicle_type": "scooter"
+      },
+      {
+        "bike_id": "55bcdcf5-fbef-4ee6-8cd5-a93e21fac4d5",
+        "lat": 40.707309,
+        "lon": -73.787946,
+        "is_reserved": false,
+        "is_disabled": false,
+        "current_range_meters": 30304,
+        "vehicle_type_id": "2",
+        "last_reported": 1785363717,
+        "vehicle_type": "scooter"
+      },
+      {
+        "bike_id": "9d3d9f40-271b-40e7-be95-dcbd4c4b96b5",
+        "lat": 40.714372,
+        "lon": -73.811759,
+        "is_reserved": false,
+        "is_disabled": false,
+        "current_range_meters": 33024,
+        "vehicle_type_id": "2",
+        "last_reported": 1785363718,
+        "vehicle_type": "scooter"
+      },
+      {
+        "bike_id": "c3c916df-f285-47f2-8a60-9cb473bdb512",
+        "lat": 40.714946,
+        "lon": -73.774691,
+        "is_reserved": false,
+        "is_disabled": false,
+        "current_range_meters": 36226,
+        "vehicle_type_id": "2",
+        "last_reported": 1785363717,
+        "vehicle_type": "scooter"
+      },
+      {
+        "bike_id": "8e1b9069-5f26-49af-adb1-d0839c63007f",
+        "lat": 40.744563,
+        "lon": -73.833476,
+        "is_reserved": false,
+        "is_disabled": false,
+        "current_range_meters": 39461,
+        "vehicle_type_id": "2",
+        "last_reported": 1785363718,
+        "vehicle_type": "scooter"
+      }
+    ]
+  }
+}
