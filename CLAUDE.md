@@ -44,10 +44,12 @@ npm start                 # ng serve → http://localhost:4200 (proxy wired in)
 npm run build             # production build
 npm run watch             # development build, watch mode
 npm test                  # Vitest via @angular/build:unit-test
-npx prettier --write .    # format (printWidth 100, single quotes)
+npm run lint              # ng lint → angular-eslint (also runs on pre-commit)
+npm run format            # prettier --write . (printWidth 80, single quotes)
 ```
 
-There is no lint setup (no ESLint dependency or config). Prettier is the only formatter.
+Prettier runs as a `prettier/prettier` ESLint rule, so `npm run lint` fails on
+unformatted TS. Husky's pre-commit hook runs it; bypass with `--no-verify`.
 
 ### Running a subset of tests
 
