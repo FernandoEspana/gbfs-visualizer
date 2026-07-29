@@ -1,6 +1,6 @@
 # SPEC 01 — Vehicle domain model and GbfsMapper
 
-> **Status:** Approved
+> **Status:** Implemented
 > **Depends on:** —
 > **Date:** 2026-07-29
 > **Objective:** Define the `Vehicle` domain model and a `GbfsMapper` service that translates raw GBFS 2.2 and 3.x free-floating payloads into it, so that every other layer depends on the domain contract instead of the feed schema.
@@ -175,61 +175,61 @@ Each step is independently commitable and leaves `npm run lint && npm run build 
 
 **Build and tooling**
 
-- [ ] `npm ci && npm run build` completes with no errors.
-- [ ] `npm run lint` passes, including the `prettier/prettier` rule.
-- [ ] `npm test` passes and every test in `gbfs-mapper.spec.ts` is green.
-- [ ] No `any` appears in any file added by this spec.
+- [x] `npm ci && npm run build` completes with no errors.
+- [x] `npm run lint` passes, including the `prettier/prettier` rule.
+- [x] `npm test` passes and every test in `gbfs-mapper.spec.ts` is green.
+- [x] No `any` appears in any file added by this spec.
 
 **Boundary**
 
-- [ ] `maplibre-gl` is not imported by any file in this spec.
-- [ ] `gbfs.types.ts` is imported only from inside `src/app/core/gbfs/`.
-- [ ] `vehicle.model.ts` imports nothing from `src/app/core/gbfs/`.
-- [ ] `GbfsMapper.toSnapshot` accepts `unknown` and performs no HTTP call.
-- [ ] `GbfsMapper` is decorated with `@Service` and neither declares
+- [x] `maplibre-gl` is not imported by any file in this spec.
+- [x] `gbfs.types.ts` is imported only from inside `src/app/core/gbfs/`.
+- [x] `vehicle.model.ts` imports nothing from `src/app/core/gbfs/`.
+- [x] `GbfsMapper.toSnapshot` accepts `unknown` and performs no HTTP call.
+- [x] `GbfsMapper` is decorated with `@Service` and neither declares
       `standalone: true` nor `changeDetection`.
 
 **Mapping**
 
-- [ ] Mapping the committed Lime fixture returns 15 vehicles and
+- [x] Mapping the committed Lime fixture returns 15 vehicles and
       `droppedCount === 0`.
-- [ ] The 2.2 fixture and its synthetic 3.x equivalent produce deep-equal
+- [x] The 2.2 fixture and its synthetic 3.x equivalent produce deep-equal
       `vehicles` arrays.
-- [ ] The fixture's `last_updated` maps to `lastUpdated` equal to that value
+- [x] The fixture's `last_updated` maps to `lastUpdated` equal to that value
       multiplied by 1000.
-- [ ] A `last_reported` of `'2026-07-29T00:00:00Z'` maps to the same epoch
+- [x] A `last_reported` of `'2026-07-29T00:00:00Z'` maps to the same epoch
       milliseconds as the equivalent POSIX-seconds integer.
-- [ ] A numeric `last_reported` above `1e11` is passed through unscaled.
-- [ ] `ttl: 60` maps to `ttlMs === 60000`; a missing `ttl` maps to `60000`.
-- [ ] A missing `last_updated` maps to `lastUpdated === 0`.
+- [x] A numeric `last_reported` above `1e11` is passed through unscaled.
+- [x] `ttl: 60` maps to `ttlMs === 60000`; a missing `ttl` maps to `60000`.
+- [x] A missing `last_updated` maps to `lastUpdated === 0`.
 
 **Status**
 
-- [ ] `is_reserved: false, is_disabled: false` maps to `status === 'available'`.
-- [ ] `is_reserved: true, is_disabled: false` maps to `status === 'reserved'`.
-- [ ] `is_reserved: false, is_disabled: true` maps to `status === 'disabled'`.
-- [ ] `is_reserved: true, is_disabled: true` maps to `status === 'disabled'`,
+- [x] `is_reserved: false, is_disabled: false` maps to `status === 'available'`.
+- [x] `is_reserved: true, is_disabled: false` maps to `status === 'reserved'`.
+- [x] `is_reserved: false, is_disabled: true` maps to `status === 'disabled'`.
+- [x] `is_reserved: true, is_disabled: true` maps to `status === 'disabled'`,
       with `isReserved === true` and `isDisabled === true` both preserved.
 
 **Failure contract**
 
-- [ ] An item with a missing `lat` is absent from `vehicles` and adds `1` to
+- [x] An item with a missing `lat` is absent from `vehicles` and adds `1` to
       `droppedCount`.
-- [ ] An item with `lon: 999` is dropped and counted.
-- [ ] An item with a non-string id is dropped and counted.
-- [ ] An item with a missing `current_range_meters` is kept, with
+- [x] An item with `lon: 999` is dropped and counted.
+- [x] An item with a non-string id is dropped and counted.
+- [x] An item with a missing `current_range_meters` is kept, with
       `currentRangeMeters === undefined`.
-- [ ] `data.bikes: []` returns a valid snapshot with `vehicles.length === 0` and
+- [x] `data.bikes: []` returns a valid snapshot with `vehicles.length === 0` and
       `droppedCount === 0`, and does not throw.
-- [ ] `toSnapshot(null)`, `toSnapshot({})` and `toSnapshot({ data: {} })` each
+- [x] `toSnapshot(null)`, `toSnapshot({})` and `toSnapshot({ data: {} })` each
       throw `GbfsMapperError`.
-- [ ] No mapped `Vehicle` has `stationId` defined.
+- [x] No mapped `Vehicle` has `stationId` defined.
 
 **Documentation**
 
-- [ ] The `Vehicle` block in `README.md` is byte-identical to the interface in
+- [x] The `Vehicle` block in `README.md` is byte-identical to the interface in
       `vehicle.model.ts`.
-- [ ] `README.md` documents `VehicleSnapshot` and states that timestamps are
+- [x] `README.md` documents `VehicleSnapshot` and states that timestamps are
       epoch milliseconds.
 
 ## Decisions
