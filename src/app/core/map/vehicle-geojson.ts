@@ -13,13 +13,18 @@ export interface VehicleFeatureProperties {
  */
 export const UNKNOWN_RANGE_METERS = -1;
 
+export type VehicleCollection = FeatureCollection<
+  Point,
+  VehicleFeatureProperties
+>;
+
 /**
  * Projects the domain model into GeoJSON. The only place where the domain's
  * `{ lat, lon }` meets GeoJSON's `[lon, lat]`.
  */
 export function toFeatureCollection(
   vehicles: readonly Vehicle[]
-): FeatureCollection<Point, VehicleFeatureProperties> {
+): VehicleCollection {
   return {
     type: 'FeatureCollection',
     features: vehicles.map(toFeature),

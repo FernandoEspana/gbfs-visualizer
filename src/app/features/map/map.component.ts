@@ -8,7 +8,10 @@ import {
   viewChild,
 } from '@angular/core';
 import { MapLibreService } from '../../core/map/maplibre.service';
-import { toFeatureCollection } from '../../core/map/vehicle-geojson';
+import {
+  toFeatureCollection,
+  type VehicleCollection,
+} from '../../core/map/vehicle-geojson';
 import { VehicleStore } from '../../core/state/vehicle-store';
 
 /**
@@ -37,14 +40,19 @@ export class MapComponent implements OnDestroy {
   private readonly container =
     viewChild.required<ElementRef<HTMLElement>>('container');
 
+  #mapReady = false;
+  #fitted = false;
+
   constructor() {
     afterNextRender(() => void this.#create());
 
     // Before the map has loaded this is a no-op; `#create` pushes the
     // snapshot that landed meanwhile, so nothing waits for the next tick.
-    effect(() =>
-      this.#maplibre.setVehicles(toFeatureCollection(this.#store.vehicles()))
-    );
+    effect(() => {
+      const collection = toFeatureCollection(this.#store.vehicles());
+      this.#maplibre.setVehicles(collection);
+      this.#fitOnce(collection);
+    });
   }
 
   ngOnDestroy(): void {
@@ -54,10 +62,27 @@ export class MapComponent implements OnDestroy {
   async #create(): Promise<void> {
     try {
       await this.#maplibre.create(this.container().nativeElement);
-      this.#maplibre.setVehicles(toFeatureCollection(this.#store.vehicles()));
+      this.#mapReady = true;
+
+      const collection = toFeatureCollection(this.#store.vehicles());
+      this.#maplibre.setVehicles(collection);
+      this.#fitOnce(collection);
     } catch (error) {
       // This spec ships no error UI; the shell spec owns loading and error.
       console.error('The map failed to load', error);
     }
+  }
+
+  /**
+   * The data frames the camera once. An empty first snapshot does not spend
+   * the one fit, and no later tick moves a viewport the user may have panned.
+   */
+  #fitOnce(collection: VehicleCollection): void {
+    if (this.#fitted || !this.#mapReady || collection.features.length === 0) {
+      return;
+    }
+
+    this.#fitted = true;
+    this.#maplibre.fitToData(collection);
   }
 }

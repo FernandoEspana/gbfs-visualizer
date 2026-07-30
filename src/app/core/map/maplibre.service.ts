@@ -1,14 +1,11 @@
 import { Service } from '@angular/core';
-import type { FeatureCollection, Point } from 'geojson';
 import type {
   DataDrivenPropertyValueSpecification,
   GeoJSONSource,
   Map as MapLibreMap,
 } from 'maplibre-gl';
 import { RANGE_BUCKETS, UNKNOWN_RANGE_COLOR } from './range-buckets';
-import type { VehicleFeatureProperties } from './vehicle-geojson';
-
-type VehicleCollection = FeatureCollection<Point, VehicleFeatureProperties>;
+import type { VehicleCollection } from './vehicle-geojson';
 
 /** Keyless vector tiles. Light enough for the vehicles to carry the weight. */
 const STYLE_URL =
@@ -92,6 +89,38 @@ export class MapLibreService {
     this.#readyMap
       ?.getSource<GeoJSONSource>(VEHICLES_SOURCE)
       ?.setData(collection);
+  }
+
+  /**
+   * Frames the data instead of trusting the hardcoded initial camera. The
+   * caller decides when: fitting on every tick would yank the viewport out
+   * from under anyone who panned.
+   */
+  fitToData(collection: VehicleCollection): void {
+    const map = this.#readyMap;
+    if (map === null || collection.features.length === 0) return;
+
+    let west = Infinity;
+    let south = Infinity;
+    let east = -Infinity;
+    let north = -Infinity;
+
+    for (const feature of collection.features) {
+      const [lon, lat] = feature.geometry.coordinates;
+      west = Math.min(west, lon);
+      south = Math.min(south, lat);
+      east = Math.max(east, lon);
+      north = Math.max(north, lat);
+    }
+
+    map.fitBounds(
+      [
+        [west, south],
+        [east, north],
+      ],
+      // `maxZoom` keeps a fleet parked on one street from filling the screen.
+      { padding: 48, maxZoom: 14, duration: 0 }
+    );
   }
 
   destroy(): void {
