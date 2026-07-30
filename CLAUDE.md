@@ -94,8 +94,9 @@ Strict one-way flow, **feed → adapter → state → UI**, with the map fully e
 
 ```
 GBFS feed (HTTP)
-  → GbfsApiService    HTTP only; raw GBFS types never escape past the mapper
+  → GbfsApi           HTTP only; returns `unknown`, never a raw GBFS type
   → GbfsMapper        sole translation boundary; absorbs provider/version differences
+  → VehiclePolling    owns time and failure; emits PollResult (snapshot or error)
   → VehicleStore      single source of truth: vehicles(), selected(), loading(), error()
   → UI components     presentational; read signals, emit intent, hold no derived state
 
@@ -105,8 +106,8 @@ MapLibreService       the ONLY module allowed to import `maplibre-gl`
 Non-negotiable constraints:
 
 - **`maplibre-gl` is imported in exactly one file** (`MapLibreService`). Components never touch the map imperatively.
-- **Swapping feed provider or GBFS version must touch only `GbfsApiService` + `GbfsMapper`.** The `Vehicle` domain model is the contract everything else depends on.
-- **Signals hold state; RxJS drives the stream.** The store is the seam. Polling is `timer()` + `switchMap` with retry/exponential backoff, aligned to the feed's `ttl`. No manual subscriptions in components.
+- **Swapping feed provider or GBFS version must touch only `GbfsApi` + `GbfsMapper`.** The `Vehicle` domain model is the contract everything else depends on.
+- **Signals hold state; RxJS drives the stream.** The store is the seam. `VehiclePolling` repeats a tick on a delay read from the last snapshot's `ttlMs`, with retry/exponential backoff and a 15s timeout. It never errors and never completes: failures travel as `PollResult`. No manual subscriptions in components.
 - **Map updates call `setData()` on a single GeoJSON source.** Sources, layers and markers are created once, never per tick. Visual encoding lives in the layer paint spec, not in component logic.
 
 ### Testing philosophy
