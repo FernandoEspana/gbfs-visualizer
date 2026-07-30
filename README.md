@@ -67,11 +67,15 @@ service. These are non-negotiable design constraints, not aspirations.
 GBFS feed (HTTP)
       │
       ▼
-GbfsApiService ......... HTTP only. Fetches raw feed payloads.
+GbfsApi ................ HTTP only. Fetches raw feed payloads as `unknown`.
       │
       ▼
 GbfsMapper ............. Translates raw GBFS schema → Vehicle domain model.
       │                  Absorbs version/provider differences and optional fields.
+      ▼
+VehiclePolling ......... Drives the two above on a ttl-aligned interval. Retry,
+      │                  backoff, timeout and cancellation live here. Emits a
+      │                  PollResult: a snapshot or a classified error.
       ▼
 VehicleStore (Signals) . Single source of truth: vehicles(), selected(),
       │                  loading(), error(). All state lives here.
@@ -87,8 +91,10 @@ MapLibreService ........ The ONLY code that imports maplibre-gl. Wraps the map
 
 **1. Layered separation**
 
-- `GbfsApiService` performs HTTP only and never leaks raw GBFS types past the adapter.
+- `GbfsApi` performs HTTP only and returns `unknown`: the generic on `get` is a
+  cast, not a check, and the payload comes from a third party.
 - `GbfsMapper` is the single translation boundary between the feed schema and the domain.
+- `VehiclePolling` is the only caller of `GbfsMapper`; it owns time and failure.
 - `VehicleStore` is the single source of truth; UI never holds derived state locally.
 - UI components are presentational: they read signals and emit intent, nothing more.
 
@@ -96,7 +102,7 @@ MapLibreService ........ The ONLY code that imports maplibre-gl. Wraps the map
 
 - The `Vehicle` domain model is the contract every consumer depends on.
 - No GBFS-specific type crosses the mapper boundary.
-- Swapping providers (or GBFS versions) touches only `GbfsApiService` + `GbfsMapper`.
+- Swapping providers (or GBFS versions) touches only `GbfsApi` + `GbfsMapper`.
 
 **3. Map encapsulation**
 
@@ -109,7 +115,7 @@ MapLibreService ........ The ONLY code that imports maplibre-gl. Wraps the map
   so it is never declared explicitly via `changeDetection:`.
 - Signals for state; `computed()` for derived state (filters, counts).
 - No manual subscriptions in components; the polling stream feeds the store.
-- Polling uses `timer()` + `switchMap` with retry and exponential backoff.
+- Polling is an RxJS stream with retry and exponential backoff; see below.
 
 **5. Map performance**
 
@@ -167,10 +173,30 @@ record out of thousands cannot blank the map. An unusable envelope throws
 
 The feed is polled on an interval aligned with the GBFS `ttl` (60s). Each tick
 fetches the latest payload, maps it to a `VehicleSnapshot`, and pushes it into
-the store,
-which in turn triggers a single `setData()` call on the map source. Errors are
-caught by the polling stream, surfaced through `error()` in the store, and
-retried with backoff without tearing down the map.
+the store, which in turn triggers a single `setData()` call on the map source.
+
+The interval is read from the last snapshot's `ttlMs`, not hardcoded, so a
+provider that changes its `ttl` cannot silently desynchronise the client. The
+first tick fires immediately, and the delay is measured from tick completion
+rather than tick start: a slow feed pushes the next request back instead of
+stacking one on top of it.
+
+**Failures travel as values.** `VehiclePolling` emits a `PollResult` — either a
+snapshot or a classified `PollError` (`network`, `http` or `schema`). The stream
+itself never errors and never completes, because an observable that errored
+would end the polling at the moment retrying matters most.
+
+| Guard        | Value                               | Why                                                                   |
+| ------------ | ----------------------------------- | --------------------------------------------------------------------- |
+| Timeout      | 15s per request                     | A hung connection is otherwise indistinguishable from a slow one.     |
+| Retries      | 3, at 1s / 2s / 4s with ±20% jitter | The whole budget plus one timeout fits inside a single 60s `ttl`.     |
+| Retry budget | Resets on every successful tick     | A session left open overnight must not exhaust it on transient blips. |
+| Schema error | Never retried                       | A corrupt envelope is deterministic; retrying only delays the error.  |
+
+The feed URL is injected through the `GBFS_FEED_URL` token, provided in
+`app.config.ts`. It is deliberately factory-less: the development value goes
+through the `ng serve` proxy and only works on localhost, so a production
+deployment repoints that one provider rather than editing a service.
 
 ## Testing
 
@@ -178,7 +204,7 @@ Tests target the logic that matters, using **Vitest**:
 
 - **`GbfsMapper`** — schema-to-domain translation, including optional-field and
   cross-version variations.
-- **`PollingService`** — retry, backoff, and cancellation behavior.
+- **`VehiclePolling`** — retry, backoff, timeout, interval and cancellation behaviour.
 - **`VehicleStore`** — state transitions (loading → loaded → empty → error, selection).
 
 Trivial "component creates successfully" tests are intentionally omitted; they
