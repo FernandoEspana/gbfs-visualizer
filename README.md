@@ -82,11 +82,20 @@ VehicleStore (Signals) . Single source of truth: status(), vehicles(),
       │                  droppedCount(). All state lives here.
       ▼
 UI components (OnPush) . Read-only consumers of signals. No imperative logic.
-                         MapComponent · VehicleListComponent · DetailPanel
-
-MapLibreService ........ The ONLY code that imports maplibre-gl. Wraps the map
-                         instance; exposes add/update GeoJSON source methods.
+      │                  MapComponent · MapLegend · VehicleListComponent ·
+      │                  DetailPanel
+      ▼
+MapLibreService ........ The ONLY code that imports maplibre-gl. Owns the map,
+                         its GeoJSON source and its layers. Speaks GeoJSON and
+                         vehicle ids; knows nothing about Vehicle or the store.
 ```
+
+`MapComponent` is the one place where a signal becomes a side effect: two
+`effect()`s push `vehicles()` and `selected()` into the service, and a map click
+comes back as `store.select(id)`. It holds no map, source or layer object — its
+entire map vocabulary is the service's method names. `toFeatureCollection()` is
+a pure function and the only place where the domain's `{ lat, lon }` meets
+GeoJSON's `[lon, lat]`.
 
 ### Architecture constraints
 
@@ -121,8 +130,9 @@ MapLibreService ........ The ONLY code that imports maplibre-gl. Wraps the map
 **5. Map performance**
 
 - Vehicles render as a single GeoJSON source; updates call `setData()` only.
-- Sources, layers and markers are created once — never recreated per tick.
-- Marker color derives from vehicle state inside the layer paint spec, not in components.
+- The source and both layers are created once, inside `create()` — never per tick.
+- No `Marker` is constructed anywhere in the codebase.
+- Colour derives from vehicle state inside the layer paint spec, not in components.
 
 ### Domain model
 
@@ -238,6 +248,112 @@ down with `takeUntilDestroyed`. `refresh()` unsubscribes and resubscribes, which
 is an immediate out-of-band tick because `snapshots$` is cold and its first tick
 has no delay.
 
+## Map rendering
+
+### One source, one `setData()` per tick
+
+Every vehicle lives in a single GeoJSON source named `vehicles`, created once
+inside `MapLibreService.create()` together with both layers. A tick is one
+`setData()` call — no markers, no layer rebuilds, no per-feature DOM. Recreating
+~3,100 markers every 60s is the standard trap with live feeds, and the
+constraint against it is asserted in `map.component.spec.ts` rather than left to
+discipline.
+
+### Loading the library
+
+`maplibre-gl` is loaded with `await import('maplibre-gl')` inside the service,
+so it lands in a lazy chunk:
+
+| Bundle               | Raw       | Transfer  |
+| -------------------- | --------- | --------- |
+| Initial (app shell)  | 322.03 kB | 77.63 kB  |
+| Lazy chunk, MapLibre | 1.04 MB   | 231.18 kB |
+
+`angular.json` errors the `initial` budget at 1 MB. A static import would put
+the initial bundle at roughly 1.3 MB and fail `ng build` outright, so the lazy
+chunk protects the build itself, not just first paint. Initialisation was
+asynchronous anyway: nothing may touch a source before the map's `load` event.
+
+MapLibre is pinned to **v5**. v6 stopped bundling its tile worker and resolves
+one at runtime from `new URL('./maplibre-gl-worker.mjs', import.meta.url)` — a
+sibling file that exists in the published `dist` but not next to a prebundled
+chunk, so under Vite and esbuild it 404s. Because MapLibre requests vector tiles
+from the worker rather than the main thread, the failure is near-silent: the
+style, TileJSON and sprite all load, attribution renders, the canvas is sized
+and WebGL is live, and no tile is ever requested. v5 inlines the worker as a
+blob URL. It ships UMD, so `maplibre-gl` is declared in
+`allowedCommonJsDependencies` to keep the build free of warnings.
+
+### Basemap
+
+CARTO Positron vector tiles, no API key: no secret in the bundle and no second
+proxy rule, and the light grey palette lets the vehicles carry the visual
+weight. `AttributionControl` is mounted expanded — attribution is a licence
+obligation, and the default control collapses it behind a click on narrow
+screens. `NavigationControl` provides keyboard-operable zoom.
+
+The tiles are a third-party runtime dependency: an outage, a rate limit or an
+offline machine leaves the basemap blank. The vehicles are a separate layer over
+the style and still render on the empty background.
+
+### Colour encoding
+
+Colour is keyed on `currentRangeMeters`, not on `status`. Every vehicle in the
+live feed is `available`, non-reserved, non-disabled and a scooter, so colouring
+by status yields a one-colour map; range is the only field with real variance
+(min 0, median ~19 km, max ~39 km).
+
+| Range     | Colour           |
+| --------- | ---------------- |
+| Under 5km | `#d7191c` red    |
+| 5–15 km   | `#fdae61` orange |
+| 15–25 km  | `#2c7bb6` blue   |
+| Over 25km | `#1a9850` green  |
+| Unknown   | `#9ca3af` grey   |
+
+A discrete `step` expression rather than a continuous `interpolate`: it reads
+better across thousands of overlapping points, it makes an honest legend
+possible, and it turns "the colour is right" into a boolean test. The cut points
+live in one exported constant, `RANGE_BUCKETS`, from which both the paint
+expression and the `MapLegend` component are derived — a map whose key lies is
+worse than a map with no key, and this makes drift impossible rather than
+unlikely.
+
+A vehicle with no reported range is projected as `rangeMeters: -1`. A `step`
+expression cannot branch on a missing property, so without the sentinel the grey
+fallback would be unreachable. The live feed always sends the field; the domain
+model types it optional because the mapper is written for other providers.
+
+### Selection
+
+The selected vehicle is drawn by a second layer, `vehicles-selected`, created
+with a filter that matches nothing and moved with one `setFilter` per selection
+change. The source is never touched, so highlighting one vehicle does not
+repaint the other 3,100 and the highlight survives a tick. `feature-state` with
+`promoteId` is the more idiomatic MapLibre approach but would need re-applying
+after every `setData` — a second synchronisation path for a visual effect.
+
+The click handler reads `properties.id` rather than `feature.id`: both are
+written, but the property survives tile encoding and the identity does not
+always.
+
+### Camera
+
+The map opens on a constant centre and zoom over the feed's coverage, so it is
+never staring at null island while loading, and performs exactly one `fitBounds`
+on the first non-empty snapshot. Later ticks never move the camera: fitting on
+every tick would yank the viewport away from anyone who panned, once a minute,
+forever. An empty first snapshot does not spend the fit.
+
+### Accessibility
+
+The map canvas is **not keyboard-selectable**. Selecting a vehicle requires a
+pointer. The accessible path to every vehicle is the vehicle list, which arrives
+in a later spec; claiming otherwise would be worse than the gap. What is covered
+today: the `NavigationControl` buttons are reachable and operable by keyboard,
+the attribution is visible on screen, and every legend entry carries its range
+label as text, because colour alone is not an encoding under WCAG AA.
+
 ## Testing
 
 Tests target the logic that matters, using **Vitest**:
@@ -247,6 +363,21 @@ Tests target the logic that matters, using **Vitest**:
 - **`VehiclePolling`** — retry, backoff, timeout, interval and cancellation behaviour.
 - **`VehicleStore`** — state transitions (idle → loading → loaded/empty/error),
   the stale-on-error rule, selection across ticks, and subscription lifecycle.
+- **`toFeatureCollection`** — coordinate order, the id on both `feature.id` and
+  `properties.id`, the missing-range sentinel, empty input, order preservation
+  and input immutability. An off-by-one here produces a blank or wrong map
+  silently.
+- **`MapComponent`** — driven against a `MapLibreService` double, because the
+  assertions that matter are call sequences: the map is built once across three
+  ticks, one collection is pushed per tick, a click selects, a selection change
+  never reaches the source, and the camera fits the first non-empty snapshot
+  only.
+
+`MapLibreService` itself has no unit test. jsdom has no WebGL, so a mocked
+`maplibre-gl` would have to impersonate the map's whole lifecycle and the test
+would assert that the mock was called the way the mock was written. The
+rendering path is covered by a manual live verification instead, recorded in the
+commit for each map step.
 
 Trivial "component creates successfully" tests are intentionally omitted; they
 add coverage numbers without protecting behavior.
@@ -278,6 +409,9 @@ npx ng test --filter '^GbfsMapper'        # by suite/test name
   yields a single-colour map. `currentRangeMeters` is the only field with real
   variance (min 0, median ~19 km, max ~39 km), so it drives the visual encoding.
   The logic stays in the layer paint spec, honouring constraint 5.
+- **A lazy `import()` rather than a raised budget.** A static import reads
+  better and would relax the one limit that protects the hard `ng build` gate,
+  in exchange for nothing measurable. See [Map rendering](#loading-the-library).
 
 ## Known limitations and improvements
 
@@ -292,8 +426,16 @@ npx ng test --filter '^GbfsMapper'        # by suite/test name
   shapes, but only Lime New York is wired up. Adding Citi Bike's station-based
   feeds (`station_status` + `station_information`, joined on `station_id`) is the
   natural next step and would exercise the adapter boundary for real.
+- **The map canvas is not keyboard-accessible.** Selecting a vehicle needs a
+  pointer. The vehicle list is the accessible path and arrives in a later spec.
+- **No loading, error or empty overlay on the map yet.** The map stays blank
+  until the first snapshot lands, and a failed style or lazy chunk is caught and
+  logged rather than surfaced. Both belong to the UI shell spec that owns those
+  states.
 - **No clustering yet.** ~3,100 points render acceptably as a single GeoJSON
-  source; a denser feed would want MapLibre's built-in clustering.
+  source; a denser feed would want MapLibre's built-in clustering. `setData()`
+  re-parses and re-uploads every feature each tick — one call per minute against
+  a measured fleet, but the first thing to revisit at ten times the scale.
 - **No E2E tests or CI.** Unit tests cover the mapper, polling and store; a
   Playwright smoke test and a lint/build/test pipeline are the obvious additions.
 
@@ -325,6 +467,8 @@ See `AGENTS.md` for the detailed agent configuration and process rules.
   their partner feed terms.
 - Feed format: [GBFS](https://github.com/MobilityData/gbfs) by MobilityData.
 - Map rendering: [MapLibre GL JS](https://maplibre.org/) — BSD-3-Clause.
-- Basemap tiles: attribution is rendered in the map's attribution control as
-  required by the tile provider's terms.
+- Basemap tiles: **© [CARTO](https://carto.com/attributions), ©
+  [OpenStreetMap](https://www.openstreetmap.org/copyright) contributors** —
+  CARTO Positron, ODbL. Rendered on screen in the map's attribution control, as
+  the tile terms require.
 - See `LICENSE` for this project's license.
