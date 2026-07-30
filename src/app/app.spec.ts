@@ -1,10 +1,15 @@
 import { TestBed } from '@angular/core/testing';
 import { App } from './app';
+import { VehicleStore } from './core/state/vehicle-store';
 
 describe('App', () => {
   beforeEach(async () => {
+    // The real store would reach the network the moment App is constructed.
+    const store: Pick<VehicleStore, 'start'> = { start: vi.fn() };
+
     await TestBed.configureTestingModule({
       imports: [App],
+      providers: [{ provide: VehicleStore, useValue: store }],
     }).compileComponents();
   });
 
