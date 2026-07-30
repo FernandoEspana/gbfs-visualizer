@@ -1,10 +1,16 @@
 import { Service } from '@angular/core';
 import type {
   DataDrivenPropertyValueSpecification,
+  FilterSpecification,
   GeoJSONSource,
   Map as MapLibreMap,
+  MapLayerMouseEvent,
 } from 'maplibre-gl';
-import { RANGE_BUCKETS, UNKNOWN_RANGE_COLOR } from './range-buckets';
+import {
+  RANGE_BUCKETS,
+  SELECTION_COLOR,
+  UNKNOWN_RANGE_COLOR,
+} from './range-buckets';
 import type { VehicleCollection } from './vehicle-geojson';
 
 /** Keyless vector tiles. Light enough for the vehicles to carry the weight. */
@@ -17,11 +23,15 @@ const INITIAL_ZOOM = 10.5;
 
 const VEHICLES_SOURCE = 'vehicles';
 const VEHICLES_LAYER = 'vehicles';
+const SELECTED_LAYER = 'vehicles-selected';
 
 const EMPTY_COLLECTION: VehicleCollection = {
   type: 'FeatureCollection',
   features: [],
 };
+
+/** No id is ever the empty string, so the selection layer starts empty. */
+const MATCHES_NOTHING: FilterSpecification = ['==', ['get', 'id'], ''];
 
 /**
  * Generated from `RANGE_BUCKETS` rather than written out, so the map and the
@@ -51,6 +61,7 @@ function circleColor(): DataDrivenPropertyValueSpecification<string> {
 export class MapLibreService {
   #map: MapLibreMap | null = null;
   #loaded = false;
+  #onVehicleClick: ((id: string) => void) | null = null;
 
   /**
    * Resolves once the style is up and the map can take data. The library is
@@ -123,10 +134,27 @@ export class MapLibreService {
     );
   }
 
+  /**
+   * Moves the highlight with a filter, not with data: the source is untouched,
+   * so selecting one vehicle never repaints the other 3,100.
+   */
+  setSelected(id: string | null): void {
+    this.#readyMap?.setFilter(
+      SELECTED_LAYER,
+      id === null ? MATCHES_NOTHING : ['==', ['get', 'id'], id]
+    );
+  }
+
+  /** Registered once in `create()`; the handler is what changes. */
+  onVehicleClick(handler: (id: string) => void): void {
+    this.#onVehicleClick = handler;
+  }
+
   destroy(): void {
     this.#map?.remove();
     this.#map = null;
     this.#loaded = false;
+    this.#onVehicleClick = null;
   }
 
   /** Null until the source exists, which is what makes every caller a no-op. */
@@ -160,6 +188,40 @@ export class MapLibreService {
         ],
         'circle-opacity': 0.85,
       },
+    });
+
+    // Created with a filter that matches nothing, so no vehicle is highlighted
+    // before a selection exists.
+    map.addLayer({
+      id: SELECTED_LAYER,
+      type: 'circle',
+      source: VEHICLES_SOURCE,
+      filter: MATCHES_NOTHING,
+      paint: {
+        'circle-color': circleColor(),
+        'circle-radius': 10,
+        'circle-stroke-color': SELECTION_COLOR,
+        'circle-stroke-width': 3,
+      },
+    });
+
+    this.#bindInteractions(map);
+  }
+
+  #bindInteractions(map: MapLibreMap): void {
+    map.on('click', VEHICLES_LAYER, (event: MapLayerMouseEvent) => {
+      // `properties.id` rather than `feature.id`: the property survives tile
+      // encoding, the identity does not always.
+      const id = event.features?.[0]?.properties?.['id'];
+      if (typeof id === 'string') this.#onVehicleClick?.(id);
+    });
+
+    map.on('mouseenter', VEHICLES_LAYER, () => {
+      map.getCanvas().style.cursor = 'pointer';
+    });
+
+    map.on('mouseleave', VEHICLES_LAYER, () => {
+      map.getCanvas().style.cursor = '';
     });
   }
 

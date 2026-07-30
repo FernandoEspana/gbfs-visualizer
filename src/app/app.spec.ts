@@ -14,16 +14,29 @@ describe('App', () => {
     // the moment App is constructed, and the map needs WebGL.
     const maplibre: Pick<
       MapLibreService,
-      'create' | 'destroy' | 'setVehicles'
+      | 'create'
+      | 'destroy'
+      | 'setVehicles'
+      | 'setSelected'
+      | 'fitToData'
+      | 'onVehicleClick'
     > = {
       create: vi.fn(async () => undefined),
       destroy: vi.fn(),
       setVehicles: vi.fn(),
+      setSelected: vi.fn(),
+      fitToData: vi.fn(),
+      onVehicleClick: vi.fn(),
     };
 
-    const store: Pick<VehicleStore, 'start' | 'vehicles'> = {
+    const store: Pick<
+      VehicleStore,
+      'start' | 'vehicles' | 'selected' | 'select'
+    > = {
       start,
       vehicles: signal([]).asReadonly(),
+      selected: signal(undefined).asReadonly(),
+      select: vi.fn(),
     };
 
     await TestBed.configureTestingModule({

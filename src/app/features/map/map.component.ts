@@ -53,6 +53,13 @@ export class MapComponent implements OnDestroy {
       this.#maplibre.setVehicles(collection);
       this.#fitOnce(collection);
     });
+
+    // A selection is a filter on a layer, so it never touches the source.
+    effect(() =>
+      this.#maplibre.setSelected(this.#store.selected()?.id ?? null)
+    );
+
+    this.#maplibre.onVehicleClick(id => this.#store.select(id));
   }
 
   ngOnDestroy(): void {
