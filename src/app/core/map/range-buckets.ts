@@ -9,8 +9,8 @@ export interface RangeBucket {
 export const RANGE_BUCKETS: readonly RangeBucket[] = [
   { fromMeters: 0, color: '#d7191c', label: 'Under 5 km' },
   { fromMeters: 5_000, color: '#fdae61', label: '5–15 km' },
-  { fromMeters: 15_000, color: '#74add1', label: '15–25 km' },
-  { fromMeters: 25_000, color: '#2c7bb6', label: 'Over 25 km' },
+  { fromMeters: 15_000, color: '#2c7bb6', label: '15–25 km' },
+  { fromMeters: 25_000, color: '#1a9850', label: 'Over 25 km' },
 ];
 
 /** Vehicles whose `currentRangeMeters` is absent. Never a bucket colour. */

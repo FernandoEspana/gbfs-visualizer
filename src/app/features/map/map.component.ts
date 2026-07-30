@@ -13,6 +13,7 @@ import {
   type VehicleCollection,
 } from '../../core/map/vehicle-geojson';
 import { VehicleStore } from '../../core/state/vehicle-store';
+import { MapLegendComponent } from './map-legend.component';
 
 /**
  * The bridge between the store's signals and the map's imperative API. It
@@ -20,7 +21,11 @@ import { VehicleStore } from '../../core/state/vehicle-store';
  */
 @Component({
   selector: 'app-map',
-  template: `<div class="map" #container></div>`,
+  imports: [MapLegendComponent],
+  template: `
+    <div class="map" #container></div>
+    <app-map-legend />
+  `,
   styles: `
     :host {
       display: block;
