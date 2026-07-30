@@ -1,6 +1,6 @@
 # SPEC 04 — Map rendering with MapLibre
 
-> **Status:** Approved
+> **Status:** Implemented
 > **Depends on:** SPEC 01, SPEC 02, SPEC 03
 > **Date:** 2026-07-30
 > **Objective:** Render `VehicleStore.vehicles()` on a MapLibre map behind `MapLibreService` — the only importer of `maplibre-gl` — as one GeoJSON source updated with `setData()` per tick, coloured by battery range in the layer paint spec, with a click on a vehicle calling `store.select(id)`.
@@ -238,106 +238,106 @@ Each step is independently commitable and leaves
 
 **Build and tooling**
 
-- [ ] `npm ci && npm run build` completes with no errors and no budget warning on
+- [x] `npm ci && npm run build` completes with no errors and no budget warning on
       the `initial` bundle.
-- [ ] `maplibre-gl` appears in a lazy chunk, not in the initial bundle.
-- [ ] `npm run lint` passes, including the `prettier/prettier` rule.
-- [ ] `npm test` passes and every test added by this spec is green.
-- [ ] No `any` appears in any file added by this spec.
+- [x] `maplibre-gl` appears in a lazy chunk, not in the initial bundle.
+- [x] `npm run lint` passes, including the `prettier/prettier` rule.
+- [x] `npm test` passes and every test added by this spec is green.
+- [x] No `any` appears in any file added by this spec.
 
 **Boundary**
 
-- [ ] `grep -rn "maplibre-gl" src --include=*.ts` matches exactly one file:
+- [x] `grep -rn "maplibre-gl" src --include=*.ts` matches exactly one file:
       `src/app/core/map/maplibre.service.ts`.
-- [ ] `MapComponent` holds no reference to a map, source, layer or `LngLat`
+- [x] `MapComponent` holds no reference to a map, source, layer or `LngLat`
       object. Its only map vocabulary is the `MapLibreService` method names.
-- [ ] `maplibre.service.ts` imports nothing from `core/state/`, `core/polling/` or
+- [x] `maplibre.service.ts` imports nothing from `core/state/`, `core/polling/` or
       `core/gbfs/`. It knows about GeoJSON, not about `Vehicle` or the store.
-- [ ] `vehicle-geojson.ts` imports nothing from Angular or `maplibre-gl`.
-- [ ] `GbfsApi`, `GbfsMapper`, `VehiclePolling` and `VehicleStore` are unchanged
+- [x] `vehicle-geojson.ts` imports nothing from Angular or `maplibre-gl`.
+- [x] `GbfsApi`, `GbfsMapper`, `VehiclePolling` and `VehicleStore` are unchanged
       by this spec.
-- [ ] No component in this spec declares `standalone: true` or `changeDetection`.
+- [x] No component in this spec declares `standalone: true` or `changeDetection`.
 
 **Projection**
 
-- [ ] `toFeatureCollection` emits coordinates as `[lon, lat]`.
-- [ ] Each feature carries the vehicle id on both `feature.id` and
+- [x] `toFeatureCollection` emits coordinates as `[lon, lat]`.
+- [x] Each feature carries the vehicle id on both `feature.id` and
       `properties.id`.
-- [ ] A vehicle without `currentRangeMeters` yields `rangeMeters: -1`.
-- [ ] An empty input yields a `FeatureCollection` whose `features` is empty.
-- [ ] The input array is not mutated and feature order matches input order.
-- [ ] Every colour in the `circle-color` expression comes from `RANGE_BUCKETS`;
+- [x] A vehicle without `currentRangeMeters` yields `rangeMeters: -1`.
+- [x] An empty input yields a `FeatureCollection` whose `features` is empty.
+- [x] The input array is not mutated and feature order matches input order.
+- [x] Every colour in the `circle-color` expression comes from `RANGE_BUCKETS`;
       no colour literal appears in `maplibre.service.ts` other than through that
-      constant and `UNKNOWN_RANGE_COLOR`.
+      constant, `UNKNOWN_RANGE_COLOR` and `SELECTION_COLOR`. See deviation 1.
 
 **Rendering and performance**
 
-- [ ] The `vehicles` source and both layers are created exactly once, inside
+- [x] The `vehicles` source and both layers are created exactly once, inside
       `create()`.
-- [ ] Across three consecutive ticks, the double records three `setVehicles`
+- [x] Across three consecutive ticks, the double records three `setVehicles`
       calls and zero source or layer rebuilds.
-- [ ] No `Marker` is constructed anywhere in the codebase.
-- [ ] `setVehicles`, `setSelected` and `fitToData` called before the map has
+- [x] No `Marker` is constructed anywhere in the codebase.
+- [x] `setVehicles`, `setSelected` and `fitToData` called before the map has
       loaded are no-ops and throw nothing.
-- [ ] A snapshot that arrives while `create()` is still pending is rendered as
+- [x] A snapshot that arrives while `create()` is still pending is rendered as
       soon as the map loads, without waiting for the next tick.
-- [ ] The component holds no copy of the vehicle array; it projects
+- [x] The component holds no copy of the vehicle array; it projects
       `store.vehicles()` on each effect run and keeps no local derived signal.
 
 **Selection**
 
-- [ ] A click on a vehicle feature calls `store.select(id)` with the id from
+- [x] A click on a vehicle feature calls `store.select(id)` with the id from
       `properties.id`.
-- [ ] A selection change calls `setSelected` and does not call `setVehicles`.
-- [ ] `setSelected(null)` leaves the `vehicles-selected` layer matching no
+- [x] A selection change calls `setSelected` and does not call `setVehicles`.
+- [x] `setSelected(null)` leaves the `vehicles-selected` layer matching no
       feature.
-- [ ] The `vehicles-selected` layer is created with a filter matching nothing, so
+- [x] The `vehicles-selected` layer is created with a filter matching nothing, so
       nothing is highlighted before a selection exists.
 - [ ] The cursor changes over a vehicle feature and reverts on leaving it.
 
 **Camera**
 
-- [ ] The map opens on the constant centre and zoom, before any snapshot.
-- [ ] `fitToData` runs on the first non-empty collection and on no later one.
-- [ ] An empty first snapshot does not trigger a fit, and the first non-empty one
+- [x] The map opens on the constant centre and zoom, before any snapshot.
+- [x] `fitToData` runs on the first non-empty collection and on no later one.
+- [x] An empty first snapshot does not trigger a fit, and the first non-empty one
       after it does.
 
 **Legend**
 
-- [ ] `MapLegend` renders one entry per `RANGE_BUCKET` plus the unknown-range
+- [x] `MapLegend` renders one entry per `RANGE_BUCKET` plus the unknown-range
       entry.
-- [ ] Adding a bucket to `RANGE_BUCKETS` changes both the legend and the paint
+- [x] Adding a bucket to `RANGE_BUCKETS` changes both the legend and the paint
       spec with no other edit.
 
 **Accessibility**
 
-- [ ] An AXE pass over the running app reports no violations.
+- [x] An AXE pass over the running app reports no violations.
 - [ ] The `NavigationControl` buttons are reachable and operable by keyboard.
-- [ ] Basemap attribution is visible on screen.
-- [ ] The legend is readable text, not colour alone: every entry carries its
+- [x] Basemap attribution is visible on screen.
+- [x] The legend is readable text, not colour alone: every entry carries its
       range label.
 
 **Live feed**
 
-- [ ] With `npm start`, the basemap renders and roughly 3,100 circles appear on
+- [x] With `npm start`, the basemap renders and roughly 3,100 circles appear on
       the first snapshot.
-- [ ] The count of rendered features matches `store.vehicles().length`.
-- [ ] A second tick ~60 s later repaints with no visible flash and without moving
+- [x] The count of rendered features matches `store.vehicles().length`.
+- [x] A second tick ~60 s later repaints with no visible flash and without moving
       the camera.
-- [ ] Panning away and waiting through a tick leaves the camera where the user
+- [x] Panning away and waiting through a tick leaves the camera where the user
       left it.
-- [ ] Clicking a vehicle highlights exactly one, and the highlight survives the
+- [x] Clicking a vehicle highlights exactly one, and the highlight survives the
       next tick.
-- [ ] No throwaway logging from step 10 remains in the committed tree.
+- [x] No throwaway logging from step 10 remains in the committed tree.
 
 **Documentation**
 
-- [ ] The layer diagram in `README.md` names `MapLibreService`, `MapComponent`
+- [x] The layer diagram in `README.md` names `MapLibreService`, `MapComponent`
       and `MapLegend`.
-- [ ] `README.md` documents the range-based colour encoding and why status is not
+- [x] `README.md` documents the range-based colour encoding and why status is not
       used, the lazy `import()` with the measured bundle numbers, the CARTO/OSM
       attribution, and the one-shot `fitBounds`.
-- [ ] `README.md` states that the map canvas is not keyboard-selectable and that
+- [x] `README.md` states that the map canvas is not keyboard-selectable and that
       the accessible path is the vehicle list, arriving in a later spec.
 
 ## Decisions
@@ -478,3 +478,44 @@ Each step is independently commitable and leaves
 - Any change to `GbfsApi`, `GbfsMapper`, `VehiclePolling` or `VehicleStore`.
 
 Each one of those, if it lands, goes in its own spec.
+
+## Deviations from the spec as written
+
+**1. `SELECTION_COLOR` in `range-buckets.ts`.** The spec asks the selected layer
+for a stroke halo and, one section later, forbids any colour literal in
+`maplibre.service.ts` outside `RANGE_BUCKETS` and `UNKNOWN_RANGE_COLOR`. The two
+cannot both hold. The halo colour is exported alongside the other two, so the
+service still contains no literal. The file is now the map's colour constants
+rather than only its buckets.
+
+**2. The legend class is `MapLegendComponent`.** The spec names it `MapLegend`;
+its sibling in the same directory is `MapComponent`, and two suffix conventions
+in one folder reads worse than departing from the name. The file path is as
+specified.
+
+**3. `maplibre-gl` is pinned to v5, not the latest major.** v6 resolves its tile
+worker at runtime from a `dist` sibling that no bundler emits, so the worker
+404s and no vector tile is ever requested: the map renders blank with a clean
+console. Diagnosis and the rejected alternative are in the `fix(map)` commit and
+in `README.md`.
+
+**4. Two acceptance criteria are unchecked.** The pointer cursor over a feature
+and keyboard operability of the `NavigationControl` buttons were not observed
+directly during the live verification. Everything around them was — Lighthouse
+scored accessibility 100, the console was clean, and selection by click works —
+but neither of those two facts is evidence for these, so they stay open rather
+than being marked on inference.
+
+## Verified live
+
+With `npm start` against the Lime New York feed:
+
+| Check                                | Observed                                        |
+| ------------------------------------ | ----------------------------------------------- |
+| `store.vehicles().length`            | 3,362                                           |
+| `data.bikes.length` (same minute)    | 3,372 — the drift of one tick, not lost records |
+| `store.droppedCount()`               | 0                                               |
+| Second tick, ~60s later              | no flash, camera unmoved, highlight survived    |
+| Lighthouse accessibility             | 100                                             |
+| Console                              | no errors, no warnings                          |
+| `npm ci && npm run build` from clean | passes, no budget warning                       |
