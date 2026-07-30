@@ -77,8 +77,9 @@ VehiclePolling ......... Drives the two above on a ttl-aligned interval. Retry,
       │                  backoff, timeout and cancellation live here. Emits a
       │                  PollResult: a snapshot or a classified error.
       ▼
-VehicleStore (Signals) . Single source of truth: vehicles(), selected(),
-      │                  loading(), error(). All state lives here.
+VehicleStore (Signals) . Single source of truth: status(), vehicles(),
+      │                  selected(), selectionLost(), error(), lastUpdated(),
+      │                  droppedCount(). All state lives here.
       ▼
 UI components (OnPush) . Read-only consumers of signals. No imperative logic.
                          MapComponent · VehicleListComponent · DetailPanel
@@ -198,6 +199,45 @@ The feed URL is injected through the `GBFS_FEED_URL` token, provided in
 through the `ng serve` proxy and only works on localhost, so a production
 deployment repoints that one provider rather than editing a service.
 
+## Application state
+
+`VehicleStore` holds four private writable signals — the snapshot, the error,
+the selected id and whether the stream started — and exposes nothing but
+`computed()` accessors and commands. One fact has one owner, so `status()`,
+`vehicles()` and `error()` cannot contradict each other.
+
+`status()` is derived, never assigned:
+
+| Status      | When                                                          |
+| ----------- | ------------------------------------------------------------- |
+| `'idle'`    | `start()` has not been called; nothing is polling yet.        |
+| `'loading'` | Started, no snapshot and no error yet.                        |
+| `'loaded'`  | A snapshot arrived carrying vehicles.                         |
+| `'empty'`   | A snapshot arrived carrying none — a graded state, not a bug. |
+| `'error'`   | The stream failed and **no** snapshot has ever arrived.       |
+
+**Stale data beats a blank map.** An error that arrives after a successful tick
+populates `error()` and leaves `status()` and `vehicles()` untouched — the same
+array instance, so no marker or list row repaints. The UI shows a banner over
+the data it already has, and the next successful tick clears `error()`. Only a
+failure with nothing ever loaded reaches `'error'`, because that is the one case
+where there is nothing to show. `error()` is never cleared by time.
+
+**The selection is an id, not an object.** `selected()` resolves it against the
+current snapshot, so it can never age into a stale copy. A vehicle that vanishes
+from the feed keeps its id and raises `selectionLost()`, letting the detail panel
+say so instead of disappearing while it is being read.
+
+**`droppedCount()` is surfaced and never escalated.** A feed with thousands of
+good vehicles and a handful of malformed ones is still usable, so a non-zero
+count stays `'loaded'`; the live feed drops zero, and any threshold that flipped
+the store into `'error'` would be a number invented without data.
+
+`start()` is idempotent and called once from `App`; the subscription is torn
+down with `takeUntilDestroyed`. `refresh()` unsubscribes and resubscribes, which
+is an immediate out-of-band tick because `snapshots$` is cold and its first tick
+has no delay.
+
 ## Testing
 
 Tests target the logic that matters, using **Vitest**:
@@ -205,7 +245,8 @@ Tests target the logic that matters, using **Vitest**:
 - **`GbfsMapper`** — schema-to-domain translation, including optional-field and
   cross-version variations.
 - **`VehiclePolling`** — retry, backoff, timeout, interval and cancellation behaviour.
-- **`VehicleStore`** — state transitions (loading → loaded → empty → error, selection).
+- **`VehicleStore`** — state transitions (idle → loading → loaded/empty/error),
+  the stale-on-error rule, selection across ticks, and subscription lifecycle.
 
 Trivial "component creates successfully" tests are intentionally omitted; they
 add coverage numbers without protecting behavior.
