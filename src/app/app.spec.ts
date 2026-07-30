@@ -1,3 +1,4 @@
+import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { App } from './app';
 import { MapLibreService } from './core/map/maplibre.service';
@@ -11,15 +12,24 @@ describe('App', () => {
 
     // Neither real collaborator may run here: the store reaches the network
     // the moment App is constructed, and the map needs WebGL.
-    const maplibre: Pick<MapLibreService, 'create' | 'destroy'> = {
+    const maplibre: Pick<
+      MapLibreService,
+      'create' | 'destroy' | 'setVehicles'
+    > = {
       create: vi.fn(async () => undefined),
       destroy: vi.fn(),
+      setVehicles: vi.fn(),
+    };
+
+    const store: Pick<VehicleStore, 'start' | 'vehicles'> = {
+      start,
+      vehicles: signal([]).asReadonly(),
     };
 
     await TestBed.configureTestingModule({
       imports: [App],
       providers: [
-        { provide: VehicleStore, useValue: { start } },
+        { provide: VehicleStore, useValue: store },
         { provide: MapLibreService, useValue: maplibre },
       ],
     }).compileComponents();
