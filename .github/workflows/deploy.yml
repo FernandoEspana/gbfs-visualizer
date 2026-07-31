@@ -2,6 +2,14 @@ name: Deploy static content pages
 on:
   push:
     branches: ['main']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
 
 jobs:
   build:
@@ -12,17 +20,33 @@ jobs:
 
       - name: Setup Node
         uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
 
       - name: Install Dependencies
-        run: npm install
+        run: npm ci
 
+      - name: Lint
+        run: npm run lint
+
+      # `--watch` already defaults to false off a TTY; pinned so a runner that
+      # reports one cannot hang the job.
+      - name: Unit Tests
+        run: npm test -- --watch=false
+
+      # GitHub Pages serves this project at /gbfs-visualizer/, so every asset
+      # URL has to be prefixed or the app 404s on load.
       - name: Build GBFS-Visualizer
-        run: npm run build
+        run: npm run build -- --base-href /gbfs-visualizer/
+
+      # Pages has no SPA rewrite; a deep link needs index.html under its own name.
+      - name: Add SPA fallback
+        run: cp dist/gbfs-visualizer/browser/index.html dist/gbfs-visualizer/browser/404.html
 
       - name: Artifact Upload
         uses: actions/upload-pages-artifact@v3
         with:
-          name: gitHub-pages
           path: dist/gbfs-visualizer/browser
 
   deploy:
@@ -30,6 +54,9 @@ jobs:
     permissions:
       pages: write
       id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
     runs-on: ubuntu-latest
     steps:
       - name: Deploy to gitHub
