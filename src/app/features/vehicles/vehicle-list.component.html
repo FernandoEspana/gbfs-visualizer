@@ -1,0 +1,40 @@
+<cdk-virtual-scroll-viewport
+  class="viewport"
+  [itemSize]="rowHeight"
+  role="listbox"
+  aria-label="Vehicles"
+  tabindex="0"
+  [attr.aria-activedescendant]="activeDescendantId()"
+  (keydown)="onKeydown($event)"
+  (focus)="onFocus()">
+  <!--
+    The row carries a click handler and is deliberately not focusable: in a
+    listbox the keyboard lives on the viewport and the active row is named
+    by aria-activedescendant, so a focusable row would be the bug.
+  -->
+  <!-- eslint-disable-next-line @angular-eslint/template/click-events-have-key-events, @angular-eslint/template/interactive-supports-focus -->
+  <div
+    *cdkVirtualFor="
+      let vehicle of vehicles();
+      trackBy: trackById;
+      let index = index
+    "
+    class="row"
+    role="option"
+    [id]="'vehicle-option-' + vehicle.id"
+    [class.selected]="vehicle.id === selected()?.id"
+    [class.active]="isActive(index)"
+    [attr.aria-selected]="vehicle.id === selected()?.id"
+    [attr.aria-posinset]="index + 1"
+    [attr.aria-setsize]="vehicles().length"
+    (click)="onRowClick(vehicle.id, index)">
+    <span
+      class="dot"
+      [style.background-color]="dotColor(vehicle)"
+      aria-hidden="true"></span>
+
+    <span class="id">{{ vehicle.id }}</span>
+    <span class="range">{{ range(vehicle) }}</span>
+    <span class="reported">{{ reportedAt(vehicle) }}</span>
+  </div>
+</cdk-virtual-scroll-viewport>
