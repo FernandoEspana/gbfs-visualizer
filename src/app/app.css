@@ -1,4 +1,77 @@
 :host {
-  display: block;
+  /* Column, so the banner takes a full-width band above both regions and is
+     visible whatever the sidebar is doing. */
+  display: flex;
+  flex-direction: column;
   block-size: 100dvh;
+  overflow: hidden;
+}
+
+.body {
+  flex: 1 1 auto;
+  display: grid;
+  /* The map takes what is left, so the sidebar's width is the only fixed
+     dimension in the shell. */
+  grid-template-columns: 1fr 380px;
+  min-block-size: 0;
+  position: relative;
+}
+
+app-map {
+  /* Without this a grid item refuses to shrink below its content and the map
+     canvas pushes a horizontal scrollbar onto the page. */
+  min-inline-size: 0;
+}
+
+.drawer-toggle {
+  display: none;
+}
+
+/* Below the breakpoint the map is the product, so the list becomes a drawer
+   that starts closed and covers the map instead of resizing it. A push layout
+   would change the canvas size and need a resize call the map layer does not
+   expose. */
+@media (max-width: 767px) {
+  .body {
+    grid-template-columns: 1fr;
+  }
+
+  .drawer-toggle {
+    display: block;
+    position: absolute;
+    inset-block-end: 1rem;
+    inset-inline-start: 50%;
+    translate: -50% 0;
+    z-index: 2;
+    padding: 0.5rem 1rem;
+    border-radius: 9999px;
+    background-color: #111827;
+    color: #ffffff;
+    font-size: 0.8125rem;
+    font-weight: 600;
+    box-shadow: 0 2px 8px rgb(0 0 0 / 0.3);
+    cursor: pointer;
+  }
+
+  .drawer-toggle:focus-visible {
+    outline: 2px solid #ffffff;
+    outline-offset: 2px;
+  }
+
+  /* Beats the component's own `:host { display: flex }` on specificity, which
+     a bare element selector would not. */
+  app-vehicle-sidebar:not(.open) {
+    display: none;
+  }
+
+  app-vehicle-sidebar {
+    position: absolute;
+    inset-inline: 0;
+    inset-block-end: 0;
+    block-size: min(70dvh, 30rem);
+    z-index: 3;
+    border-start-start-radius: 0.75rem;
+    border-start-end-radius: 0.75rem;
+    box-shadow: 0 -4px 16px rgb(0 0 0 / 0.25);
+  }
 }

@@ -1,0 +1,48 @@
+:host {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.5rem 0.75rem;
+  /* Amber over near-black: a warning that stays legible without competing with
+     the map for attention. */
+  background-color: #fef3c7;
+  color: #78350f;
+  border-block-end: 1px solid #fcd34d;
+  font-size: 0.8125rem;
+}
+
+.message {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-inline-size: 0;
+}
+
+.dot {
+  flex: none;
+  inline-size: 0.5rem;
+  block-size: 0.5rem;
+  border-radius: 9999px;
+  background-color: #b45309;
+}
+
+.retry {
+  flex: none;
+  padding: 0.25rem 0.625rem;
+  border-radius: 0.375rem;
+  background-color: #78350f;
+  color: #ffffff;
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.retry:hover {
+  background-color: #92400e;
+}
+
+.retry:focus-visible {
+  outline: 2px solid #78350f;
+  outline-offset: 2px;
+}

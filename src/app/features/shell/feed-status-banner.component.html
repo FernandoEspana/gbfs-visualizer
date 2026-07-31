@@ -1,0 +1,6 @@
+<p class="message">
+  <span class="dot" aria-hidden="true"></span>
+  {{ reason() }}. Showing data from {{ age() }}.
+</p>
+
+<button class="retry" type="button" (click)="retry.emit()">Retry</button>
