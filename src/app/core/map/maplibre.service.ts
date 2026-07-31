@@ -52,6 +52,23 @@ function circleColor(): DataDrivenPropertyValueSpecification<string> {
   ] as DataDrivenPropertyValueSpecification<string>;
 }
 
+type MapLibreModule = typeof import('maplibre-gl');
+
+/**
+ * `maplibre-gl` ships a UMD bundle while declaring `"type": "module"`, so its
+ * runtime shape depends on the build: an optimized chunk carries a lone
+ * `default`, an unoptimized one also gets esbuild's named-export shims. Its
+ * typings declare only the named exports, hence the cast. Reading `default`
+ * first makes both builds take the same path — destructuring the namespace
+ * directly yields `undefined` in production and fails on `new Map()`.
+ */
+async function loadMapLibre(): Promise<MapLibreModule> {
+  const module = await import('maplibre-gl');
+  const interop = module as unknown as { default?: MapLibreModule };
+
+  return interop.default ?? module;
+}
+
 /**
  * The only module in the repo allowed to name `maplibre-gl`. It owns the map,
  * its source and its layers; callers speak GeoJSON and vehicle ids, never
@@ -69,8 +86,7 @@ export class MapLibreService {
    * bundle. Rejects if the chunk or the style fails to load.
    */
   async create(container: HTMLElement): Promise<void> {
-    const { Map, AttributionControl, NavigationControl } =
-      await import('maplibre-gl');
+    const { Map, AttributionControl, NavigationControl } = await loadMapLibre();
 
     const map = new Map({
       container,
