@@ -1,30 +1,64 @@
+import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { App } from './app';
+import { MapLibreService } from './core/map/maplibre.service';
 import { VehicleStore } from './core/state/vehicle-store';
 
 describe('App', () => {
+  const start = vi.fn();
+
   beforeEach(async () => {
-    // The real store would reach the network the moment App is constructed.
-    const store: Pick<VehicleStore, 'start'> = { start: vi.fn() };
+    start.mockClear();
+
+    // Neither real collaborator may run here: the store reaches the network
+    // the moment App is constructed, and the map needs WebGL.
+    const maplibre: Pick<
+      MapLibreService,
+      | 'create'
+      | 'destroy'
+      | 'setVehicles'
+      | 'setSelected'
+      | 'fitToData'
+      | 'onVehicleClick'
+    > = {
+      create: vi.fn(async () => undefined),
+      destroy: vi.fn(),
+      setVehicles: vi.fn(),
+      setSelected: vi.fn(),
+      fitToData: vi.fn(),
+      onVehicleClick: vi.fn(),
+    };
+
+    const store: Pick<
+      VehicleStore,
+      'start' | 'vehicles' | 'selected' | 'select'
+    > = {
+      start,
+      vehicles: signal([]).asReadonly(),
+      selected: signal(undefined).asReadonly(),
+      select: vi.fn(),
+    };
 
     await TestBed.configureTestingModule({
       imports: [App],
-      providers: [{ provide: VehicleStore, useValue: store }],
+      providers: [
+        { provide: VehicleStore, useValue: store },
+        { provide: MapLibreService, useValue: maplibre },
+      ],
     }).compileComponents();
   });
 
-  it('should create the app', () => {
-    const fixture = TestBed.createComponent(App);
-    const app = fixture.componentInstance;
-    expect(app).toBeTruthy();
+  it('starts the vehicle stream once', () => {
+    TestBed.createComponent(App);
+
+    expect(start).toHaveBeenCalledTimes(1);
   });
 
-  it('should render title', async () => {
+  it('renders the map', async () => {
     const fixture = TestBed.createComponent(App);
     await fixture.whenStable();
-    const compiled = fixture.nativeElement as HTMLElement;
-    expect(compiled.querySelector('h1')?.textContent).toContain(
-      'Hello, gbfs-visualizer'
-    );
+
+    const host = fixture.nativeElement as HTMLElement;
+    expect(host.querySelector('app-map')).not.toBeNull();
   });
 });
