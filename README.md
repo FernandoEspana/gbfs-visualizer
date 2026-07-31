@@ -302,6 +302,14 @@ and WebGL is live, and no tile is ever requested. v5 inlines the worker as a
 blob URL. It ships UMD, so `maplibre-gl` is declared in
 `allowedCommonJsDependencies` to keep the build free of warnings.
 
+That UMD bundle also declares `"type": "module"`, and the mismatch changes the
+module's runtime shape per build: the optimized chunk exports a lone `default`,
+while an unoptimized one also carries esbuild's named-export shims. Destructuring
+the namespace directly therefore works under `ng serve` and yields `undefined`
+in production, where `new Map()` fails with `n is not a constructor` and the map
+never appears. `loadMapLibre()` reads `default` first and falls back to the
+namespace, so both builds take one path.
+
 ### Basemap
 
 CARTO Positron vector tiles, no API key: no secret in the bundle and no second
