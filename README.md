@@ -43,6 +43,7 @@ for a production deployment.
 | -------- | ---------------------------------------------------------------------------- |
 | Endpoint | `https://data.lime.bike/api/partners/v2/gbfs/new_york/free_bike_status.json` |
 | Via app  | `/api/gbfs/free_bike_status.json` (dev proxy)                                |
+| In prod  | `gbfs/free_bike_status.json` (captured snapshot — see below)                 |
 | GBFS     | 2.2 · `ttl` 60s                                                              |
 | Payload  | ~3,100 free-floating scooters, ~700 KB                                       |
 | Coverage | Queens and the Bronx — `lat 40.666–40.911`, `lon -73.884–-73.744`            |
@@ -56,6 +57,23 @@ an empty map and make the real-time and performance requirements untestable.
 This project therefore uses Lime New York, which serves the same feed type with
 live data. This deviation is deliberate and is the reason the mapper is written
 against the GBFS _shape_ rather than one provider.
+
+### The live demo replays a snapshot
+
+Live demo: **https://fernandoespana.github.io/gbfs-visualizer/**
+
+The feed sends no `Access-Control-Allow-Origin` header, so a browser cannot call
+it directly, and GitHub Pages is static hosting with no way to proxy. The
+deployed build therefore reads `public/gbfs/free_bike_status.json`, a snapshot of
+the real feed captured on 2026-07-30 (3,416 vehicles). Polling, TTL scheduling,
+retry and re-render all run exactly as they do against the live endpoint — the
+payload simply does not change between ticks, so vehicles do not move.
+
+The switch is a single `useFactory` on `GBFS_FEED_URL` in `app.config.ts` keyed
+off `isDevMode()`; the URL is resolved against `document.baseURI` because Pages
+serves the app from a repository subpath. `npm start` is unaffected and remains
+fully live. Restoring live data in production means pointing that one provider at
+a CORS-enabled proxy — nothing else in the app knows where the feed comes from.
 
 ## Architecture
 
@@ -416,8 +434,10 @@ npx ng test --filter '^GbfsMapper'        # by suite/test name
 ## Known limitations and improvements
 
 - **CORS / production deploy.** The feed sends no `Access-Control-Allow-Origin`,
-  so the dev proxy has no equivalent in a static production build. A real deploy
-  needs a small serverless function or reverse proxy in front of the feed.
+  so the dev proxy has no equivalent in a static production build. The GitHub
+  Pages demo replays a captured snapshot instead of the live feed; a genuinely
+  live deploy needs a small serverless function or reverse proxy in front of the
+  feed.
 - **Uniform vehicle state.** The live feed reports every vehicle as available,
   non-reserved and non-disabled. Reserved/disabled rendering paths are therefore
   implemented and unit-tested against synthetic payloads rather than observed
@@ -436,8 +456,10 @@ npx ng test --filter '^GbfsMapper'        # by suite/test name
   source; a denser feed would want MapLibre's built-in clustering. `setData()`
   re-parses and re-uploads every feature each tick — one call per minute against
   a measured fleet, but the first thing to revisit at ten times the scale.
-- **No E2E tests or CI.** Unit tests cover the mapper, polling and store; a
-  Playwright smoke test and a lint/build/test pipeline are the obvious additions.
+- **No E2E tests.** Unit tests cover the mapper, polling and store, and
+  `.github/workflows/deploy.yml` gates every deploy on lint plus the full suite.
+  A Playwright smoke test over the map and the selection round-trip is the
+  obvious addition.
 
 ## Effort
 
