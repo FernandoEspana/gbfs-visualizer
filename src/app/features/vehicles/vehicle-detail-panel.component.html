@@ -1,0 +1,42 @@
+<section class="panel" aria-labelledby="detail-title">
+  <header class="header">
+    <h3 class="title" id="detail-title">{{ vehicle().id }}</h3>
+    <button
+      class="close"
+      type="button"
+      aria-label="Close vehicle details"
+      (click)="close.emit()">
+      &times;
+    </button>
+  </header>
+
+  @if (lost()) {
+    <p class="notice" role="status">
+      This vehicle is no longer in the feed. It was last seen
+      {{ reportedAt() }}.
+    </p>
+  } @else {
+    <dl class="fields">
+      <dt>Type</dt>
+      <dd>{{ vehicle().vehicleType ?? 'unknown' }}</dd>
+
+      <dt>Status</dt>
+      <dd>{{ vehicle().status }}</dd>
+
+      <dt>Range</dt>
+      <dd class="range">
+        <span
+          class="dot"
+          [style.background-color]="dotColor()"
+          aria-hidden="true"></span>
+        {{ range() }}
+      </dd>
+
+      <dt>Coordinates</dt>
+      <dd>{{ coordinates() }}</dd>
+
+      <dt>Last seen</dt>
+      <dd>{{ reportedAt() }}</dd>
+    </dl>
+  }
+</section>
