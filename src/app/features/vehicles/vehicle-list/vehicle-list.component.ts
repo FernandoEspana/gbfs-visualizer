@@ -18,13 +18,10 @@ import {
 import {
   bucketFor,
   UNKNOWN_RANGE_COLOR,
-} from '../../../core/map/range-buckets/range-buckets';
-import type { Vehicle } from '../../../core/models/vehicle.model';
-import { NOW } from '../../../core/time/now';
-import {
-  formatRange,
-  formatRelativeTime,
-} from '../../../core/format/vehicle-format';
+} from '@core/map/range-buckets/range-buckets';
+import type { Vehicle } from '@core/models/vehicle.model';
+import { NOW } from '@core/time/now';
+import { formatRange, formatRelativeTime } from '@core/format/vehicle-format';
 
 /** The promise `itemSize` makes to the viewport. Fixed in CSS, never wrapped. */
 const ROW_HEIGHT_PX = 64;

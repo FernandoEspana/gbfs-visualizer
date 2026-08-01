@@ -1,6 +1,6 @@
 import { TestBed } from '@angular/core/testing';
-import type { Vehicle } from '../../../core/models/vehicle.model';
-import { NOW } from '../../../core/time/now';
+import type { Vehicle } from '@core/models/vehicle.model';
+import { NOW } from '@core/time/now';
 import { VehicleDetailPanelComponent } from './vehicle-detail-panel.component';
 
 const NOW_MS = 1_700_000_000_000;

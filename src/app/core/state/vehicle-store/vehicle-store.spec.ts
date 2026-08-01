@@ -1,8 +1,8 @@
 import { TestBed } from '@angular/core/testing';
 import { Observable, Subject } from 'rxjs';
-import type { Vehicle, VehicleSnapshot } from '../../models/vehicle.model';
-import type { PollError, PollResult } from '../../polling/poll-result';
-import { VehiclePolling } from '../../polling/vehicle-polling/vehicle-polling';
+import type { Vehicle, VehicleSnapshot } from '@core/models/vehicle.model';
+import type { PollError, PollResult } from '@core/polling/poll-result';
+import { VehiclePolling } from '@core/polling/vehicle-polling/vehicle-polling';
 import { VehicleStore } from './vehicle-store';
 
 function vehicle(id: string): Vehicle {

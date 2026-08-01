@@ -1,9 +1,9 @@
 import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
-import { MapLibreService } from '../../../core/map/maplibre.service';
-import type { VehicleCollection } from '../../../core/map/vehicle-geojson/vehicle-geojson';
-import type { Vehicle } from '../../../core/models/vehicle.model';
-import { VehicleStore } from '../../../core/state/vehicle-store/vehicle-store';
+import { MapLibreService } from '@core/map/maplibre.service';
+import type { VehicleCollection } from '@core/map/vehicle-geojson/vehicle-geojson';
+import type { Vehicle } from '@core/models/vehicle.model';
+import { VehicleStore } from '@core/state/vehicle-store/vehicle-store';
 import { MapComponent } from './map.component';
 
 /**

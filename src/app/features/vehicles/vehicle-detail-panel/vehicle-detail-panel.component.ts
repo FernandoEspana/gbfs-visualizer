@@ -3,13 +3,13 @@ import {
   formatCoordinates,
   formatRange,
   formatRelativeTime,
-} from '../../../core/format/vehicle-format';
+} from '@core/format/vehicle-format';
 import {
   bucketFor,
   UNKNOWN_RANGE_COLOR,
-} from '../../../core/map/range-buckets/range-buckets';
-import type { Vehicle } from '../../../core/models/vehicle.model';
-import { NOW } from '../../../core/time/now';
+} from '@core/map/range-buckets/range-buckets';
+import type { Vehicle } from '@core/models/vehicle.model';
+import { NOW } from '@core/time/now';
 
 /**
  * The selected vehicle, in full. Presentational: it is told which vehicle to

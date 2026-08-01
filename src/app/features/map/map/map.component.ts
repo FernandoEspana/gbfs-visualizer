@@ -7,12 +7,12 @@ import {
   OnDestroy,
   viewChild,
 } from '@angular/core';
-import { MapLibreService } from '../../../core/map/maplibre.service';
+import { MapLibreService } from '@core/map/maplibre.service';
 import {
   toFeatureCollection,
   type VehicleCollection,
-} from '../../../core/map/vehicle-geojson/vehicle-geojson';
-import { VehicleStore } from '../../../core/state/vehicle-store/vehicle-store';
+} from '@core/map/vehicle-geojson/vehicle-geojson';
+import { VehicleStore } from '@core/state/vehicle-store/vehicle-store';
 import { MapLegendComponent } from '../map-legend/map-legend.component';
 
 /**

@@ -1,5 +1,5 @@
 import type { Feature, FeatureCollection, Point } from 'geojson';
-import type { Vehicle } from '../../models/vehicle.model';
+import type { Vehicle } from '@core/models/vehicle.model';
 
 export interface VehicleFeatureProperties {
   id: string;

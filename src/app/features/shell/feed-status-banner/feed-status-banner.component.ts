@@ -1,7 +1,7 @@
 import { Component, inject, input, output } from '@angular/core';
-import { formatRelativeTime } from '../../../core/format/vehicle-format';
-import type { PollError } from '../../../core/polling/poll-result';
-import { NOW } from '../../../core/time/now';
+import { formatRelativeTime } from '@core/format/vehicle-format';
+import type { PollError } from '@core/polling/poll-result';
+import { NOW } from '@core/time/now';
 
 const REASONS: Record<PollError['kind'], string> = {
   network: 'The feed is not responding',

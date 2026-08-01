@@ -6,10 +6,10 @@ import {
   output,
   signal,
 } from '@angular/core';
-import { formatRelativeTime } from '../../../core/format/vehicle-format';
-import type { Vehicle } from '../../../core/models/vehicle.model';
-import { VehicleStore } from '../../../core/state/vehicle-store/vehicle-store';
-import { NOW } from '../../../core/time/now';
+import { formatRelativeTime } from '@core/format/vehicle-format';
+import type { Vehicle } from '@core/models/vehicle.model';
+import { VehicleStore } from '@core/state/vehicle-store/vehicle-store';
+import { NOW } from '@core/time/now';
 import { VehicleDetailPanelComponent } from '../vehicle-detail-panel/vehicle-detail-panel.component';
 import { VehicleListComponent } from '../vehicle-list/vehicle-list.component';
 

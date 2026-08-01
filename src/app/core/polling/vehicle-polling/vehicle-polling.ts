@@ -12,11 +12,11 @@ import {
   timer,
   type Observable,
 } from 'rxjs';
-import { GbfsApi } from '../../gbfs/gbfs-api/gbfs-api';
+import { GbfsApi } from '@core/gbfs/gbfs-api/gbfs-api';
 import {
   GbfsMapper,
   GbfsMapperError,
-} from '../../gbfs/gbfs-mapper/gbfs-mapper';
+} from '@core/gbfs/gbfs-mapper/gbfs-mapper';
 import { backoffDelay } from '../backoff/backoff';
 import { toPollError } from '../poll-error/poll-error';
 import type { PollResult } from '../poll-result';
