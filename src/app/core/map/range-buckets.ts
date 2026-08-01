@@ -36,9 +36,3 @@ export function bucketFor(rangeMeters: number | undefined): RangeBucket | null {
 
   return null;
 }
-
-/**
- * The selection halo. Not a data colour: it has to read against every bucket
- * and against the basemap, so it is the darkest thing on the map.
- */
-export const SELECTION_COLOR = '#111827';
