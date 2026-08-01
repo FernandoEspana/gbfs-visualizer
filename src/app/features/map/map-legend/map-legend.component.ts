@@ -2,7 +2,7 @@ import { Component } from '@angular/core';
 import {
   RANGE_BUCKETS,
   UNKNOWN_RANGE_COLOR,
-} from '../../core/map/range-buckets';
+} from '../../../core/map/range-buckets/range-buckets';
 
 /**
  * The key to the map's colours. It reads the same constant the paint spec is

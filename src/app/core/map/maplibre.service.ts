@@ -6,9 +6,16 @@ import type {
   Map as MapLibreMap,
   MapLayerMouseEvent,
 } from 'maplibre-gl';
-import { HALO_RESTING_FRAME, haloFrame, type HaloFrame } from './halo-pulse';
-import { RANGE_BUCKETS, UNKNOWN_RANGE_COLOR } from './range-buckets';
-import type { VehicleCollection } from './vehicle-geojson';
+import {
+  HALO_RESTING_FRAME,
+  haloFrame,
+  type HaloFrame,
+} from './halo-pulse/halo-pulse';
+import {
+  RANGE_BUCKETS,
+  UNKNOWN_RANGE_COLOR,
+} from './range-buckets/range-buckets';
+import type { VehicleCollection } from './vehicle-geojson/vehicle-geojson';
 
 /** Keyless vector tiles. Light enough for the vehicles to carry the weight. */
 const STYLE_URL =

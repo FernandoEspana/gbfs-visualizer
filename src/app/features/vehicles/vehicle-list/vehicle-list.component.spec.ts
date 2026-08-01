@@ -1,8 +1,8 @@
 import { CdkVirtualScrollViewport } from '@angular/cdk/scrolling';
 import { TestBed, type ComponentFixture } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
-import type { Vehicle } from '../../core/models/vehicle.model';
-import { NOW } from '../../core/time/now';
+import type { Vehicle } from '../../../core/models/vehicle.model';
+import { NOW } from '../../../core/time/now';
 import { VehicleListComponent } from './vehicle-list.component';
 
 const NOW_MS = 1_700_000_000_000;

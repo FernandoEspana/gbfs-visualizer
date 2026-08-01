@@ -1,8 +1,8 @@
 import { Component, computed, inject, signal } from '@angular/core';
-import { MapComponent } from './features/map/map.component';
-import { FeedStatusBannerComponent } from './features/shell/feed-status-banner.component';
-import { VehicleSidebarComponent } from './features/vehicles/vehicle-sidebar.component';
-import { VehicleStore } from './core/state/vehicle-store';
+import { MapComponent } from './features/map/map/map.component';
+import { FeedStatusBannerComponent } from './features/shell/feed-status-banner/feed-status-banner.component';
+import { VehicleSidebarComponent } from './features/vehicles/vehicle-sidebar/vehicle-sidebar.component';
+import { VehicleStore } from './core/state/vehicle-store/vehicle-store';
 
 @Component({
   selector: 'app-root',

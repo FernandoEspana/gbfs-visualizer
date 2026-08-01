@@ -1,4 +1,4 @@
-import type { Vehicle } from '../models/vehicle.model';
+import type { Vehicle } from '../../models/vehicle.model';
 import { toFeatureCollection } from './vehicle-geojson';
 
 function vehicle(id: string, overrides: Partial<Vehicle> = {}): Vehicle {

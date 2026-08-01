@@ -5,7 +5,7 @@ import { MapLibreService } from './core/map/maplibre.service';
 import type { Vehicle } from './core/models/vehicle.model';
 import type { PollError } from './core/polling/poll-result';
 import type { StoreStatus } from './core/state/store-status';
-import { VehicleStore } from './core/state/vehicle-store';
+import { VehicleStore } from './core/state/vehicle-store/vehicle-store';
 import { NOW } from './core/time/now';
 
 const NOW_MS = 1_700_000_000_000;

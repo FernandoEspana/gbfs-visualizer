@@ -1,7 +1,7 @@
 import { HttpClient } from '@angular/common/http';
 import { inject, Service } from '@angular/core';
 import type { Observable } from 'rxjs';
-import { GBFS_FEED_URL } from './gbfs-feed-url';
+import { GBFS_FEED_URL } from '../gbfs-feed-url';
 
 /**
  * Transport only. Retry, timeout and translation live in the layers above, so

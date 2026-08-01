@@ -1,5 +1,5 @@
 import { bucketFor, RANGE_BUCKETS } from './range-buckets';
-import { UNKNOWN_RANGE_METERS } from './vehicle-geojson';
+import { UNKNOWN_RANGE_METERS } from '../vehicle-geojson/vehicle-geojson';
 
 describe('bucketFor', () => {
   it('places a range inside each bucket', () => {

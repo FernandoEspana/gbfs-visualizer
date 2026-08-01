@@ -7,13 +7,13 @@ import {
   OnDestroy,
   viewChild,
 } from '@angular/core';
-import { MapLibreService } from '../../core/map/maplibre.service';
+import { MapLibreService } from '../../../core/map/maplibre.service';
 import {
   toFeatureCollection,
   type VehicleCollection,
-} from '../../core/map/vehicle-geojson';
-import { VehicleStore } from '../../core/state/vehicle-store';
-import { MapLegendComponent } from './map-legend.component';
+} from '../../../core/map/vehicle-geojson/vehicle-geojson';
+import { VehicleStore } from '../../../core/state/vehicle-store/vehicle-store';
+import { MapLegendComponent } from '../map-legend/map-legend.component';
 
 /**
  * The bridge between the store's signals and the map's imperative API. It

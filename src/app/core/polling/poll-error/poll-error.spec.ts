@@ -1,6 +1,6 @@
 import { HttpErrorResponse } from '@angular/common/http';
 import { TimeoutError } from 'rxjs';
-import { GbfsMapperError } from '../gbfs/gbfs-mapper';
+import { GbfsMapperError } from '../../gbfs/gbfs-mapper/gbfs-mapper';
 import { toPollError } from './poll-error';
 
 const NOW = 1785363766000;
