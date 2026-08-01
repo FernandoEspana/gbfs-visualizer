@@ -1,6 +1,6 @@
 import { TestBed } from '@angular/core/testing';
 import { GbfsMapper, GbfsMapperError } from './gbfs-mapper';
-import limeFeed from './__fixtures__/lime-free-bike-status.json';
+import limeFeed from '../__fixtures__/lime-free-bike-status.json';
 
 describe('GbfsMapper', () => {
   let mapper: GbfsMapper;

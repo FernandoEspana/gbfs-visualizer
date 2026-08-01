@@ -1,7 +1,7 @@
 import { HttpErrorResponse } from '@angular/common/http';
 import { TimeoutError } from 'rxjs';
-import { GbfsMapperError } from '../gbfs/gbfs-mapper';
-import type { PollError } from './poll-result';
+import { GbfsMapperError } from '@core/gbfs/gbfs-mapper/gbfs-mapper';
+import type { PollError } from '../poll-result';
 
 /**
  * Classifies whatever came out of a failed tick. `status === 0` is what a

@@ -5,11 +5,11 @@ import {
 } from '@angular/common/http/testing';
 import { TestBed } from '@angular/core/testing';
 import type { Subscription } from 'rxjs';
-import { GBFS_FEED_URL } from '../gbfs/gbfs-feed-url';
-import limeFeed from '../gbfs/__fixtures__/lime-free-bike-status.json';
-import type { VehicleSnapshot } from '../models/vehicle.model';
-import type { PollError, PollResult } from './poll-result';
-import { RANDOM } from './random';
+import { GBFS_FEED_URL } from '@core/gbfs/gbfs-feed-url';
+import limeFeed from '@core/gbfs/__fixtures__/lime-free-bike-status.json';
+import type { VehicleSnapshot } from '@core/models/vehicle.model';
+import type { PollError, PollResult } from '../poll-result';
+import { RANDOM } from '../random';
 import { VehiclePolling } from './vehicle-polling';
 
 const FEED_URL = '/api/gbfs/free_bike_status.json';

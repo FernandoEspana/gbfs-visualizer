@@ -1,0 +1,76 @@
+:host {
+  display: block;
+  block-size: 100%;
+  min-block-size: 0;
+}
+
+.viewport {
+  block-size: 100%;
+}
+
+.viewport:focus-visible {
+  /* The listbox is the tab stop, so it is the thing that has to show focus. */
+  outline: 2px solid #1d4ed8;
+  outline-offset: -2px;
+}
+
+.row {
+  /* Fixed: the viewport is told this height and cannot discover a wrapped
+     row, so nothing inside may grow. */
+  block-size: 64px;
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  grid-template-rows: auto auto;
+  align-items: center;
+  column-gap: 0.5rem;
+  padding-inline: 0.75rem;
+  border-block-end: 1px solid #e5e7eb;
+  cursor: pointer;
+  font-size: 0.8125rem;
+  line-height: 1.3;
+}
+
+.row:hover {
+  background-color: #f3f4f6;
+}
+
+.row.selected {
+  background-color: #e0e7ff;
+}
+
+/* The keyboard cursor. No row ever holds DOM focus, so this is the only thing
+   that says where the arrow keys are. */
+.viewport:focus-visible .row.active {
+  box-shadow: inset 2px 0 0 0 #1d4ed8;
+}
+
+.dot {
+  grid-row: 1 / span 2;
+  inline-size: 0.625rem;
+  block-size: 0.625rem;
+  border-radius: 9999px;
+  box-shadow: inset 0 0 0 1px rgb(17 24 39 / 0.2);
+}
+
+.id {
+  font-weight: 600;
+  color: #111827;
+  /* The id is the only variable-width field; it truncates so the row cannot
+     wrap past 64px. */
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.range {
+  justify-self: end;
+  color: #374151;
+  white-space: nowrap;
+}
+
+.reported {
+  grid-column: 2 / span 2;
+  color: #6b7280;
+  font-size: 0.75rem;
+  white-space: nowrap;
+}

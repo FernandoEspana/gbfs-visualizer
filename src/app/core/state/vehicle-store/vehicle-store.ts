@@ -1,10 +1,10 @@
 import { computed, DestroyRef, inject, signal, Service } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import type { Subscription } from 'rxjs';
-import type { Vehicle, VehicleSnapshot } from '../models/vehicle.model';
-import type { PollError, PollResult } from '../polling/poll-result';
-import { VehiclePolling } from '../polling/vehicle-polling';
-import type { StoreStatus } from './store-status';
+import type { Vehicle, VehicleSnapshot } from '@core/models/vehicle.model';
+import type { PollError, PollResult } from '@core/polling/poll-result';
+import { VehiclePolling } from '@core/polling/vehicle-polling/vehicle-polling';
+import type { StoreStatus } from '../store-status';
 
 /** One frozen instance, so `vehicles()` is referentially stable while empty. */
 const EMPTY_VEHICLES: readonly Vehicle[] = Object.freeze([]);

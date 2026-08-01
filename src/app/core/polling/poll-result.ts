@@ -1,4 +1,4 @@
-import type { VehicleSnapshot } from '../models/vehicle.model';
+import type { VehicleSnapshot } from '@core/models/vehicle.model';
 
 /**
  * `network` covers anything with no usable status: an offline browser, a

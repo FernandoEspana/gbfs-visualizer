@@ -7,6 +7,7 @@ updating in near real-time via polling.
 ## Stack
 
 - **Angular 22** — standalone components, zoneless, Signals
+- **Angular CDK** — `ScrollingModule` only, for the virtual-scrolled vehicle list
 - **MapLibre GL JS** — interactive vector map
 - **RxJS** — polling stream with retry/backoff
 - **Tailwind CSS** — utility-first styling
@@ -100,13 +101,25 @@ VehicleStore (Signals) . Single source of truth: status(), vehicles(),
       │                  droppedCount(). All state lives here.
       ▼
 UI components (OnPush) . Read-only consumers of signals. No imperative logic.
-      │                  MapComponent · MapLegend · VehicleListComponent ·
-      │                  DetailPanel
+      │
+      │    App ......................... Owns the layout and the mobile drawer.
+      │      ├── FeedStatusBanner ...... Stale data over a live map.
+      │      ├── MapComponent .......... Bridges signals into the map service.
+      │      │     └── MapLegend ....... The key to the colour encoding.
+      │      └── VehicleSidebar ........ The only component wired to the store
+      │            │                     below App. Owns the four UI states.
+      │            ├── VehicleDetailPanel  The selected vehicle, in full.
+      │            └── VehicleList ...... Every vehicle, virtual-scrolled.
       ▼
 MapLibreService ........ The ONLY code that imports maplibre-gl. Owns the map,
                          its GeoJSON source and its layers. Speaks GeoJSON and
                          vehicle ids; knows nothing about Vehicle or the store.
 ```
+
+`VehicleList` and `VehicleDetailPanel` do not inject `VehicleStore`. They take
+`input()`s and emit `output()`s, so their tests mount a component and nothing
+else. `MapComponent` is deliberately different: it injects the store because it
+bridges signals into an imperative API from an `effect()`.
 
 `MapComponent` is the one place where a signal becomes a side effect: two
 `effect()`s push `vehicles()` and `selected()` into the service, and a map click
@@ -148,7 +161,7 @@ GeoJSON's `[lon, lat]`.
 **5. Map performance**
 
 - Vehicles render as a single GeoJSON source; updates call `setData()` only.
-- The source and both layers are created once, inside `create()` — never per tick.
+- The source and all five layers are created once, inside `create()` — never per tick.
 - No `Marker` is constructed anywhere in the codebase.
 - Colour derives from vehicle state inside the layer paint spec, not in components.
 
@@ -271,11 +284,24 @@ has no delay.
 ### One source, one `setData()` per tick
 
 Every vehicle lives in a single GeoJSON source named `vehicles`, created once
-inside `MapLibreService.create()` together with both layers. A tick is one
+inside `MapLibreService.create()` together with all five layers. A tick is one
 `setData()` call — no markers, no layer rebuilds, no per-feature DOM. Recreating
 ~3,100 markers every 60s is the standard trap with live feeds, and the
 constraint against it is asserted in `map.component.spec.ts` rather than left to
 discipline.
+
+Everything the map shows is one of these, bottom to top:
+
+| Layer                    | Type     | Drawn for     | Notes                                    |
+| ------------------------ | -------- | ------------- | ---------------------------------------- |
+| `vehicles-halo`          | `circle` | the selection | Pulsing. Radius and opacity animated.    |
+| `vehicles`               | `circle` | every vehicle | The coloured disc. One paint expression. |
+| `vehicles-selected`      | `circle` | the selection | Larger disc, white ring.                 |
+| `vehicles-icon`          | `symbol` | every vehicle | The scooter glyph, from zoom 14.         |
+| `vehicles-selected-icon` | `symbol` | the selection | The same glyph, at every zoom.           |
+
+Four of the five are filtered rather than fed: only `vehicles` ever sees the
+whole collection, and a selection is a `setFilter` call, never a `setData`.
 
 ### Loading the library
 
@@ -284,8 +310,13 @@ so it lands in a lazy chunk:
 
 | Bundle               | Raw       | Transfer  |
 | -------------------- | --------- | --------- |
-| Initial (app shell)  | 322.03 kB | 77.63 kB  |
+| Initial (app shell)  | 392.47 kB | 94.64 kB  |
 | Lazy chunk, MapLibre | 1.04 MB   | 231.18 kB |
+
+The shell spec added ~66 kB raw to the initial bundle, ~54 kB of it the Angular
+CDK's `ScrollingModule`. The rest of the CDK is never imported and is
+tree-shaken. The marker glyph and the halo added ~4 kB between them: the scooter
+is an inline string, not an asset request.
 
 `angular.json` errors the `initial` budget at 1 MB. A static import would put
 the initial bundle at roughly 1.3 MB and fail `ng build` outright, so the lazy
@@ -350,14 +381,66 @@ expression cannot branch on a missing property, so without the sentinel the grey
 fallback would be unreachable. The live feed always sends the field; the domain
 model types it optional because the mapper is written for other providers.
 
+### The marker
+
+A vehicle is a coloured disc with a scooter glyph inside it. The glyph is an
+inline SVG string — a few hundred bytes, no file to 404 — rasterised once at
+startup and registered with `map.addImage()` before any layer names it, since a
+layer referencing a missing image makes MapLibre warn once per tile forever.
+
+It is drawn in one flat dark colour rather than tinted per bucket. Tinting an
+icon needs an SDF, and a rasterised SVG is not a signed distance field: the edges
+would be wrong for the sake of a colour the disc underneath already carries.
+
+**The fleet's glyphs only exist from zoom 14.** Below that the disc is under
+~13px across and a glyph inside it is a smudge — but the real reason is cost.
+Symbol layers are the expensive kind: MapLibre builds per-tile symbol buckets for
+them, and hiding icons with `icon-opacity: 0` would cost exactly as much as
+showing them. `minzoom` is what stops the work happening at all at city zoom.
+Both symbol layers also set `icon-allow-overlap` and `icon-ignore-placement`:
+collision detection across thousands of icons is the other bill worth not paying,
+and overlapping markers are what a fleet map looks like anyway.
+
+The selected vehicle gets its glyph from a second symbol layer with no `minzoom`,
+so the thing the user is looking at always reads as a scooter. That layer is
+filtered to one feature, so its bucket is trivial — and `vehicles-icon` excludes
+the selected id, or the two would draw the same glyph at two different sizes on
+the same point.
+
 ### Selection
 
-The selected vehicle is drawn by a second layer, `vehicles-selected`, created
-with a filter that matches nothing and moved with one `setFilter` per selection
-change. The source is never touched, so highlighting one vehicle does not
-repaint the other 3,100 and the highlight survives a tick. `feature-state` with
-`promoteId` is the more idiomatic MapLibre approach but would need re-applying
-after every `setData` — a second synchronisation path for a visual effect.
+The selected vehicle is drawn by layers of its own, created with a filter that
+matches nothing and moved with one `setFilter` per selection change. The source
+is never touched, so highlighting one vehicle does not repaint the other 3,100
+and the highlight survives a tick. `feature-state` with `promoteId` is the more
+idiomatic MapLibre approach but would need re-applying after every `setData` — a
+second synchronisation path for a visual effect.
+
+Three things say "selected", so none of them has to carry it alone: the disc
+grows and gains a white ring, the glyph appears at any zoom, and a halo pulses
+underneath in **that vehicle's own bucket colour** — the halo names which vehicle
+is selected, not merely that something is. The white ring replaced a flat dark
+one: a circle layer has a single stroke, so the disc could not have both, and the
+halo is now the strong signal.
+
+The pulse is driven by `requestAnimationFrame` over `setPaintProperty`, because
+MapLibre draws to a canvas and CSS animation is not available there. Its geometry
+is a pure function in `halo-pulse.ts` rather than arithmetic buried in the
+service — `MapLibreService` has no unit test by design, so anything in it that
+can be numerically wrong should not be in it.
+
+The loop is bounded on every side. It animates one feature, whatever the fleet
+size, because the layer is filtered to the selection. It stops on deselect and on
+teardown, cancelling before `map.remove()` so a scheduled frame cannot wake up to
+a map that no longer exists. And it never starts at all under
+`prefers-reduced-motion: reduce`, which paints a resting frame of the same pulse
+instead — visible, static, and not a single frame requested.
+
+One subtlety worth naming: `store.selected()` is recomputed on every tick, so
+`setSelected()` arrives once a minute with the same id. The service tracks the
+current id and only restarts the pulse when it actually changes; without that,
+the halo would snap back to its smallest radius in front of the user, once a
+minute, forever.
 
 The click handler reads `properties.id` rather than `feature.id`: both are
 written, but the property survives tile encoding and the identity does not
@@ -373,12 +456,139 @@ forever. An empty first snapshot does not spend the fit.
 
 ### Accessibility
 
-The map canvas is **not keyboard-selectable**. Selecting a vehicle requires a
-pointer. The accessible path to every vehicle is the vehicle list, which arrives
-in a later spec; claiming otherwise would be worse than the gap. What is covered
-today: the `NavigationControl` buttons are reachable and operable by keyboard,
-the attribution is visible on screen, and every legend entry carries its range
-label as text, because colour alone is not an encoding under WCAG AA.
+The map canvas is **not keyboard-selectable**. Selecting a vehicle on the canvas
+requires a pointer. The accessible path to every vehicle is the vehicle list,
+and it now exists: the listbox described in [The application
+shell](#the-application-shell) reaches all 3,362 vehicles from a single tab stop
+and selects any of them, which is what makes the canvas gap acceptable rather
+than a hole. Also covered: the `NavigationControl` buttons are reachable and
+operable by keyboard, the attribution is visible on screen, and every legend
+entry carries its range label as text, because colour alone is not an encoding
+under WCAG AA.
+
+## The application shell
+
+A split layout: the map takes the space that is left, and a 380px sidebar holds
+the vehicle list and the detail panel. Below 768px the sidebar becomes a bottom
+drawer that **starts closed**, opened by a "View list (N)" button over the map.
+On a phone the map is the product, and a list that opens over it on load hides
+what the user came for; the button carries the count, so "is there data?" is
+answered without opening anything.
+
+The drawer is an **overlay, not a push**. It covers the map instead of resizing
+its container, so the canvas dimensions never change and no new `MapLibreService`
+method is needed. The stale-data banner is a full-width band above both regions
+for the same reason it is a separate component: on mobile the drawer starts
+closed, and a banner living inside the sidebar would hide the one state the user
+most needs to see.
+
+### Bidirectional sync
+
+`store.selected()` is the only channel between the map and the list. Neither
+component knows the other exists; both read one signal and call one method.
+
+```
+click on a map feature ──► MapLibreService ──► store.select(id)
+                                                    │
+                                    ┌───────────────┴───────────────┐
+                                    ▼                               ▼
+                        selected() → effect()            selected() → input
+                        setFilter on the                 aria-selected + auto
+                        selection layer                  scrollToIndex()
+                                    ▲                               │
+                                    └────── store.select(id) ◄──────┘
+                                                          click or Enter on a row
+```
+
+Two guards keep the auto-scroll honest, and both exist because of how the store
+models a selection:
+
+- `selected()` resolves against the live snapshot, so it returns **a new object
+  on every tick**. The list keeps the last id it scrolled to and treats an
+  unchanged id as a no-op — otherwise the viewport would jump back once a minute
+  under a user who had scrolled away.
+- A selection the list itself originated is flagged before it is emitted, so
+  clicking a row does not scroll the viewport to the row already under the
+  pointer.
+
+Fly-to on a list selection is deliberately **not** implemented: it needs a camera
+policy that has to coexist with the one-shot `fitBounds`, and it belongs in a
+spec that owns the camera. Hover sync and URL deep-linking are out for the same
+reason — each is a second synchronisation path.
+
+### The four UI states
+
+The sidebar owns them, as one `@switch` over `store.status()`, so exactly one
+branch is ever in the DOM:
+
+| Status               | Sidebar renders                                     |
+| -------------------- | --------------------------------------------------- |
+| `'idle'`/`'loading'` | Skeleton rows, plus a screen-reader status message. |
+| `'loaded'`           | The detail panel (if any) and the list.             |
+| `'empty'`            | A message. Not a skeleton, and not an empty list.   |
+| `'error'`            | A message and a **Retry** button on `refresh()`.    |
+
+An error **with** data already on screen is not in that table: it is a banner
+over a live map, not a state swap. The store keeps the last snapshot on failure
+precisely so stale data beats a blank map, and the UI has to honour that or the
+store's design was pointless. Retry exists because waiting 60s for the automatic
+retry with no way to ask is a bad answer to "it broke".
+
+### Virtual scroll
+
+The list renders through `cdk-virtual-scroll-viewport` at a fixed 64px row: 3,362
+rows is not a list, it is a stress test, and one DOM node per vehicle would undo
+the performance argument the map layer was built around. Capping the list at N
+vehicles would have been cheaper, but it makes the list lie about the fleet and
+turns "every vehicle is reachable" into a falsehood.
+
+Rows are tracked by `vehicle.id` — without it Angular rebuilds every row on each
+tick and the virtual scroll saves nothing. Order is by id and never by a mutable
+field: sorting by range or `lastReported` would reorder the list on every tick
+and move rows out from under the pointer once a minute.
+
+The list holds no copy of the vehicle array and no derived signal over it. It
+does re-diff ~3,362 tracked ids per tick — virtual scroll bounds the DOM, not the
+diff — which is not measurable next to the `setData()` the map already does on
+the same tick, and is named here so it is not rediscovered as a surprise at ten
+times the scale.
+
+### List accessibility
+
+The list is a `listbox` of `option`s with **one tab stop for the whole fleet**. A
+list of buttons would put 3,362 tab stops between the user and the footer.
+
+- DOM focus stays on the viewport permanently; the active row is named by
+  `aria-activedescendant`. No row is ever focused, so no row can lose focus by
+  being recycled out of the DOM mid-navigation.
+- `ArrowUp`/`ArrowDown` move the active row without selecting, `Home`/`End` reach
+  the ends of the **full list**, and `Enter`/`Space` select.
+- Every row carries `aria-posinset` and `aria-setsize` over the whole fleet.
+  With ~15 rows in the DOM, a screen reader would otherwise announce "1 of 15"
+  for a fleet of 3,362.
+- The viewport injects a wrapper between itself and the rows, which would break
+  the `listbox`/`option` relationship; it is marked `role="presentation"`.
+- The range bucket is never communicated by colour alone — every row and the
+  panel carry the range as text next to the dot, and the dot reads the same
+  `RANGE_BUCKETS` constant the map paints from.
+
+`Escape` closes the detail panel, and on mobile closes the drawer. Precedence is
+explicit rather than propagation-based: two listeners on `document` cannot be
+ordered reliably, so the drawer declines the key while a panel is open.
+
+### Time
+
+Relative times ("2 min ago") come from pure formatters that take `nowMs` as an
+argument, and the clock itself is the `NOW` injection token — modelled on the
+existing `RANDOM` seam, and stubbed in tests with `() => 1_700_000_000_000`.
+Relative text is otherwise untestable without freezing the machine clock, and
+templates may not assume globals like `Date.now()`.
+
+The text recomputes only when a tick lands: it refreshes with the data it
+describes and adds no timer. During an outage it freezes — but the banner above
+it is already saying the feed is stale, so the frozen number is not the
+misleading part. A second clock signal ticking against the component tree to keep
+a string honest that the banner already qualifies was not worth it.
 
 ## Testing
 
@@ -398,6 +608,27 @@ Tests target the logic that matters, using **Vitest**:
   ticks, one collection is pushed per tick, a click selects, a selection change
   never reaches the source, and the camera fits the first non-empty snapshot
   only.
+- **`vehicle-format` and `bucketFor`** — exhaustive, because they are pure, fast
+  and the place where a wrong unit or an off-by-one on a bucket boundary
+  silently mislabels every row.
+- **`haloFrame`** — the selection pulse: periodic across period boundaries,
+  monotonic within one, never a negative radius or opacity, and a time before the
+  start treated as the first instant rather than wrapped. It is the only
+  arithmetic in the map layer, which is why it lives outside the untestable
+  service.
+- **`VehicleListComponent`** — the sync contract, which is the graded
+  requirement and is assertable without a map: a click emits, an external
+  selection scrolls to the right index, a self-originated selection does not, a
+  new object with the same id does not, `aria-selected` lands on exactly one row,
+  and the DOM holds a window rather than 3,362 nodes. Plus the keyboard model.
+- **`VehicleDetailPanelComponent`** — every field renders, `×` and `Escape` each
+  emit `close` once, and the lost-vehicle notice keeps a working close action.
+- **`VehicleSidebarComponent`** — the four states, driven through the real
+  `VehicleStore` over a stubbed `VehiclePolling`, so the branches are produced by
+  the same state machine the app runs on rather than by a hand-set status. Retry
+  is asserted by counting resubscriptions to the feed, not clicks.
+- **`App`** — the banner appears only with data on screen and a failing feed, and
+  the drawer's open/close and `Escape` precedence.
 
 `MapLibreService` itself has no unit test. jsdom has no WebGL, so a mocked
 `maplibre-gl` would have to impersonate the map's whole lifecycle and the test
@@ -438,6 +669,22 @@ npx ng test --filter '^GbfsMapper'        # by suite/test name
 - **A lazy `import()` rather than a raised budget.** A static import reads
   better and would relax the one limit that protects the hard `ng build` gate,
   in exchange for nothing measurable. See [Map rendering](#loading-the-library).
+- **Virtual scroll over a capped list.** ~54 kB of CDK buys a list that tells the
+  truth about the fleet and keeps the accessibility promise the map layer made.
+  A capped list is cheaper and lies. See
+  [The application shell](#virtual-scroll).
+- **One channel for the map↔list sync.** Both directions go through
+  `store.selected()`, so neither component knows the other exists. A direct
+  hover or selection channel between them would be a second source of truth for
+  a fact the store already owns.
+- **Symbol layers gated by `minzoom`, not by opacity.** The scooter glyph is the
+  one genuinely expensive thing on the map, and `minzoom` is the only lever that
+  stops MapLibre paying for it at the zooms where the whole fleet is on screen.
+  See [The marker](#the-marker).
+- **An animated halo instead of a static ring.** It is the selection cue the
+  design called for, it costs one animated feature no matter how large the fleet
+  is, and it is switched off entirely — not merely slowed — for anyone who has
+  asked for reduced motion.
 
 ## Known limitations and improvements
 
@@ -454,12 +701,20 @@ npx ng test --filter '^GbfsMapper'        # by suite/test name
   shapes, but only Lime New York is wired up. Adding Citi Bike's station-based
   feeds (`station_status` + `station_information`, joined on `station_id`) is the
   natural next step and would exercise the adapter boundary for real.
-- **The map canvas is not keyboard-accessible.** Selecting a vehicle needs a
-  pointer. The vehicle list is the accessible path and arrives in a later spec.
-- **No loading, error or empty overlay on the map yet.** The map stays blank
-  until the first snapshot lands, and a failed style or lazy chunk is caught and
-  logged rather than surfaced. Both belong to the UI shell spec that owns those
-  states.
+- **The map canvas is not keyboard-accessible.** Selecting a vehicle _on the
+  canvas_ needs a pointer; the vehicle list is the accessible path to the same
+  selection, and it covers the whole fleet from one tab stop.
+- **The map itself has no loading or error overlay.** The four states live in the
+  sidebar, which is where the data is legible; the map simply stays empty until
+  the first snapshot, and a failed style or lazy chunk is caught and logged
+  rather than surfaced.
+- **No fly-to, hover sync or URL deep-linking.** Selecting a row highlights the
+  vehicle on the map but does not move the camera. Each of those is a second
+  synchronisation path and belongs in its own spec — fly-to in one that owns the
+  camera policy, since it has to coexist with the one-shot `fitBounds`.
+- **No filters, search or sort.** The list is the whole fleet in a stable order.
+  Filtering it by the map viewport would need camera state on `MapLibreService`
+  plus a `moveend` subscription, which is exactly the second sync path above.
 - **No clustering yet.** ~3,100 points render acceptably as a single GeoJSON
   source; a denser feed would want MapLibre's built-in clustering. `setData()`
   re-parses and re-uploads every feature each tick — one call per minute against
@@ -471,10 +726,26 @@ npx ng test --filter '^GbfsMapper'        # by suite/test name
 
 ## Effort
 
-<!-- Update this before submitting. The brief asks for 4–6 effective hours and
-     requires declaring any overrun. -->
+**Effort spent: ~8 hours, against a 4–6 hour budget.** The overrun is declared
+here as the brief requires. Three things account for it, and all three are
+documented above rather than summarised away:
 
-Effort spent: _to be filled in before submission_.
+- **Architecture up front.** The layering, the `Vehicle` contract and the
+  provider-swap boundary were decided before any feature code, and the feed
+  itself was investigated rather than assumed — which is how the brief's own
+  endpoint turned out to return `{"bikes": []}`. That research changed the data
+  source and the colour encoding, so it paid for itself, but it happened before
+  the first component existed.
+- **Two MapLibre failures that only appear in a production build.** v6 resolves
+  its tile worker at runtime and 404s under esbuild, near-silently: the map
+  renders, the canvas is live, and no tile is ever requested. Then the v5 UMD
+  bundle exports a lone `default` when optimized, so destructuring the namespace
+  works under `ng serve` and yields `undefined` in production. Both are written
+  up in [Loading the library](#loading-the-library).
+- **Deploying a feed with no CORS header to static hosting.** GitHub Pages
+  cannot proxy, so the deploy replays a captured snapshot behind a single
+  `GBFS_FEED_URL` factory, and the URL had to be resolved against
+  `document.baseURI` for the repository subpath.
 
 ## AI usage
 

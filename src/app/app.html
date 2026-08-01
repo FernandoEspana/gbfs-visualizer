@@ -1,1 +1,24 @@
-<app-map />
+@if (staleFeed(); as stale) {
+  <app-feed-status-banner
+    [error]="stale.error"
+    [lastUpdated]="stale.lastUpdated"
+    (retry)="store.refresh()" />
+}
+
+<div class="body">
+  <app-map />
+
+  <button
+    class="drawer-toggle"
+    type="button"
+    aria-controls="vehicle-drawer"
+    [attr.aria-expanded]="drawerOpen()"
+    (click)="openDrawer()">
+    View list ({{ store.vehicles().length }})
+  </button>
+
+  <app-vehicle-sidebar
+    id="vehicle-drawer"
+    [class.open]="drawerOpen()"
+    (dismiss)="closeDrawer()" />
+</div>

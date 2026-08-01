@@ -1,0 +1,62 @@
+<header class="header">
+  <div>
+    <h2 class="title">Vehicles</h2>
+    @if (store.lastUpdated() !== null) {
+      <p class="meta">{{ countLabel() }} · {{ updatedLabel() }}</p>
+    }
+  </div>
+
+  <!-- The drawer's own close. Above the breakpoint there is no drawer, so CSS
+       takes it out. -->
+  <button
+    class="dismiss"
+    type="button"
+    aria-label="Close vehicle list"
+    (click)="dismiss.emit()">
+    &times;
+  </button>
+</header>
+
+@switch (store.status()) {
+  @case ('loaded') {
+    @if (panelVehicle(); as vehicle) {
+      <app-vehicle-detail-panel
+        [vehicle]="vehicle"
+        [lost]="store.selectionLost()"
+        (close)="store.clearSelection()" />
+    }
+
+    <app-vehicle-list
+      [vehicles]="store.vehicles()"
+      [selected]="store.selected()"
+      (select)="store.select($event)" />
+  }
+
+  @case ('empty') {
+    <p class="state" role="status">
+      The feed answered, but it lists no vehicles right now.
+    </p>
+  }
+
+  @case ('error') {
+    <div class="state">
+      <p role="alert">The vehicle feed could not be reached.</p>
+      <button class="retry" type="button" (click)="store.refresh()">
+        Retry
+      </button>
+    </div>
+  }
+
+  <!-- `idle` and `loading`: both mean no snapshot has landed yet. -->
+  @default {
+    <div class="skeleton">
+      <p class="visually-hidden" role="status">Loading vehicles…</p>
+      @for (row of skeletonRows; track row) {
+        <div class="skeleton-row" aria-hidden="true">
+          <span class="skeleton-dot"></span>
+          <span class="skeleton-bar"></span>
+        </div>
+      }
+    </div>
+  }
+}

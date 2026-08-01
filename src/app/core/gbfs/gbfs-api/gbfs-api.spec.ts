@@ -5,8 +5,8 @@ import {
 } from '@angular/common/http/testing';
 import { TestBed } from '@angular/core/testing';
 import { GbfsApi } from './gbfs-api';
-import { GBFS_FEED_URL } from './gbfs-feed-url';
-import limeFeed from './__fixtures__/lime-free-bike-status.json';
+import { GBFS_FEED_URL } from '../gbfs-feed-url';
+import limeFeed from '../__fixtures__/lime-free-bike-status.json';
 
 const FEED_URL = '/api/gbfs/free_bike_status.json';
 

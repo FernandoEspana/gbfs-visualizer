@@ -3,8 +3,8 @@ import type {
   Vehicle,
   VehicleSnapshot,
   VehicleStatus,
-} from '../models/vehicle.model';
-import type { RawFeed, RawVehicle } from './gbfs.types';
+} from '@core/models/vehicle.model';
+import type { RawFeed, RawVehicle } from '../gbfs.types';
 
 /** Fallback when the feed omits `ttl`. Matches what the Lime feed advertises. */
 const DEFAULT_TTL_MS = 60_000;

@@ -8,7 +8,7 @@ import {
 } from '@angular/core';
 import { provideRouter } from '@angular/router';
 
-import { GBFS_FEED_URL } from './core/gbfs/gbfs-feed-url';
+import { GBFS_FEED_URL } from '@core/gbfs/gbfs-feed-url';
 import { routes } from './app.routes';
 
 /** Rewritten to the Lime feed by `proxy.conf.json`; the feed sends no CORS header. */

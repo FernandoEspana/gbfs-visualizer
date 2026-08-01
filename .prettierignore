@@ -1,0 +1,8 @@
+# Build output and dependencies.
+dist/
+node_modules/
+.angular/
+
+# The captured feed snapshot the production build replays. Prettier expands it
+# from one line to ~37,600, which is the payload GitHub Pages actually serves.
+public/gbfs/

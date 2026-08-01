@@ -17,7 +17,22 @@ export const RANGE_BUCKETS: readonly RangeBucket[] = [
 export const UNKNOWN_RANGE_COLOR = '#9ca3af';
 
 /**
- * The selection halo. Not a data colour: it has to read against every bucket
- * and against the basemap, so it is the darkest thing on the map.
+ * The bucket a range falls in, or `null` when the range is unknown. Mirrors the
+ * map's `step` expression: bounds are inclusive lower, and a value below the
+ * first bound — absent, or a negative that cannot be a real range — is `null`,
+ * which the UI paints `UNKNOWN_RANGE_COLOR`.
  */
-export const SELECTION_COLOR = '#111827';
+export function bucketFor(rangeMeters: number | undefined): RangeBucket | null {
+  if (rangeMeters === undefined) {
+    return null;
+  }
+
+  for (let i = RANGE_BUCKETS.length - 1; i >= 0; i--) {
+    const bucket = RANGE_BUCKETS[i];
+    if (rangeMeters >= bucket.fromMeters) {
+      return bucket;
+    }
+  }
+
+  return null;
+}
