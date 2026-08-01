@@ -161,7 +161,7 @@ GeoJSON's `[lon, lat]`.
 **5. Map performance**
 
 - Vehicles render as a single GeoJSON source; updates call `setData()` only.
-- The source and both layers are created once, inside `create()` — never per tick.
+- The source and all five layers are created once, inside `create()` — never per tick.
 - No `Marker` is constructed anywhere in the codebase.
 - Colour derives from vehicle state inside the layer paint spec, not in components.
 
@@ -284,11 +284,24 @@ has no delay.
 ### One source, one `setData()` per tick
 
 Every vehicle lives in a single GeoJSON source named `vehicles`, created once
-inside `MapLibreService.create()` together with both layers. A tick is one
+inside `MapLibreService.create()` together with all five layers. A tick is one
 `setData()` call — no markers, no layer rebuilds, no per-feature DOM. Recreating
 ~3,100 markers every 60s is the standard trap with live feeds, and the
 constraint against it is asserted in `map.component.spec.ts` rather than left to
 discipline.
+
+Everything the map shows is one of these, bottom to top:
+
+| Layer                    | Type     | Drawn for     | Notes                                    |
+| ------------------------ | -------- | ------------- | ---------------------------------------- |
+| `vehicles-halo`          | `circle` | the selection | Pulsing. Radius and opacity animated.    |
+| `vehicles`               | `circle` | every vehicle | The coloured disc. One paint expression. |
+| `vehicles-selected`      | `circle` | the selection | Larger disc, white ring.                 |
+| `vehicles-icon`          | `symbol` | every vehicle | The scooter glyph, from zoom 14.         |
+| `vehicles-selected-icon` | `symbol` | the selection | The same glyph, at every zoom.           |
+
+Four of the five are filtered rather than fed: only `vehicles` ever sees the
+whole collection, and a selection is a `setFilter` call, never a `setData`.
 
 ### Loading the library
 
@@ -297,12 +310,13 @@ so it lands in a lazy chunk:
 
 | Bundle               | Raw       | Transfer  |
 | -------------------- | --------- | --------- |
-| Initial (app shell)  | 388.42 kB | 93.70 kB  |
+| Initial (app shell)  | 392.47 kB | 94.64 kB  |
 | Lazy chunk, MapLibre | 1.04 MB   | 231.18 kB |
 
 The shell spec added ~66 kB raw to the initial bundle, ~54 kB of it the Angular
 CDK's `ScrollingModule`. The rest of the CDK is never imported and is
-tree-shaken.
+tree-shaken. The marker glyph and the halo added ~4 kB between them: the scooter
+is an inline string, not an asset request.
 
 `angular.json` errors the `initial` budget at 1 MB. A static import would put
 the initial bundle at roughly 1.3 MB and fail `ng build` outright, so the lazy
@@ -367,14 +381,66 @@ expression cannot branch on a missing property, so without the sentinel the grey
 fallback would be unreachable. The live feed always sends the field; the domain
 model types it optional because the mapper is written for other providers.
 
+### The marker
+
+A vehicle is a coloured disc with a scooter glyph inside it. The glyph is an
+inline SVG string — a few hundred bytes, no file to 404 — rasterised once at
+startup and registered with `map.addImage()` before any layer names it, since a
+layer referencing a missing image makes MapLibre warn once per tile forever.
+
+It is drawn in one flat dark colour rather than tinted per bucket. Tinting an
+icon needs an SDF, and a rasterised SVG is not a signed distance field: the edges
+would be wrong for the sake of a colour the disc underneath already carries.
+
+**The fleet's glyphs only exist from zoom 14.** Below that the disc is under
+~13px across and a glyph inside it is a smudge — but the real reason is cost.
+Symbol layers are the expensive kind: MapLibre builds per-tile symbol buckets for
+them, and hiding icons with `icon-opacity: 0` would cost exactly as much as
+showing them. `minzoom` is what stops the work happening at all at city zoom.
+Both symbol layers also set `icon-allow-overlap` and `icon-ignore-placement`:
+collision detection across thousands of icons is the other bill worth not paying,
+and overlapping markers are what a fleet map looks like anyway.
+
+The selected vehicle gets its glyph from a second symbol layer with no `minzoom`,
+so the thing the user is looking at always reads as a scooter. That layer is
+filtered to one feature, so its bucket is trivial — and `vehicles-icon` excludes
+the selected id, or the two would draw the same glyph at two different sizes on
+the same point.
+
 ### Selection
 
-The selected vehicle is drawn by a second layer, `vehicles-selected`, created
-with a filter that matches nothing and moved with one `setFilter` per selection
-change. The source is never touched, so highlighting one vehicle does not
-repaint the other 3,100 and the highlight survives a tick. `feature-state` with
-`promoteId` is the more idiomatic MapLibre approach but would need re-applying
-after every `setData` — a second synchronisation path for a visual effect.
+The selected vehicle is drawn by layers of its own, created with a filter that
+matches nothing and moved with one `setFilter` per selection change. The source
+is never touched, so highlighting one vehicle does not repaint the other 3,100
+and the highlight survives a tick. `feature-state` with `promoteId` is the more
+idiomatic MapLibre approach but would need re-applying after every `setData` — a
+second synchronisation path for a visual effect.
+
+Three things say "selected", so none of them has to carry it alone: the disc
+grows and gains a white ring, the glyph appears at any zoom, and a halo pulses
+underneath in **that vehicle's own bucket colour** — the halo names which vehicle
+is selected, not merely that something is. The white ring replaced a flat dark
+one: a circle layer has a single stroke, so the disc could not have both, and the
+halo is now the strong signal.
+
+The pulse is driven by `requestAnimationFrame` over `setPaintProperty`, because
+MapLibre draws to a canvas and CSS animation is not available there. Its geometry
+is a pure function in `halo-pulse.ts` rather than arithmetic buried in the
+service — `MapLibreService` has no unit test by design, so anything in it that
+can be numerically wrong should not be in it.
+
+The loop is bounded on every side. It animates one feature, whatever the fleet
+size, because the layer is filtered to the selection. It stops on deselect and on
+teardown, cancelling before `map.remove()` so a scheduled frame cannot wake up to
+a map that no longer exists. And it never starts at all under
+`prefers-reduced-motion: reduce`, which paints a resting frame of the same pulse
+instead — visible, static, and not a single frame requested.
+
+One subtlety worth naming: `store.selected()` is recomputed on every tick, so
+`setSelected()` arrives once a minute with the same id. The service tracks the
+current id and only restarts the pulse when it actually changes; without that,
+the halo would snap back to its smallest radius in front of the user, once a
+minute, forever.
 
 The click handler reads `properties.id` rather than `feature.id`: both are
 written, but the property survives tile encoding and the identity does not
@@ -545,6 +611,11 @@ Tests target the logic that matters, using **Vitest**:
 - **`vehicle-format` and `bucketFor`** — exhaustive, because they are pure, fast
   and the place where a wrong unit or an off-by-one on a bucket boundary
   silently mislabels every row.
+- **`haloFrame`** — the selection pulse: periodic across period boundaries,
+  monotonic within one, never a negative radius or opacity, and a time before the
+  start treated as the first instant rather than wrapped. It is the only
+  arithmetic in the map layer, which is why it lives outside the untestable
+  service.
 - **`VehicleListComponent`** — the sync contract, which is the graded
   requirement and is assertable without a map: a click emits, an external
   selection scrolls to the right index, a self-originated selection does not, a
@@ -606,6 +677,14 @@ npx ng test --filter '^GbfsMapper'        # by suite/test name
   `store.selected()`, so neither component knows the other exists. A direct
   hover or selection channel between them would be a second source of truth for
   a fact the store already owns.
+- **Symbol layers gated by `minzoom`, not by opacity.** The scooter glyph is the
+  one genuinely expensive thing on the map, and `minzoom` is the only lever that
+  stops MapLibre paying for it at the zooms where the whole fleet is on screen.
+  See [The marker](#the-marker).
+- **An animated halo instead of a static ring.** It is the selection cue the
+  design called for, it costs one animated feature no matter how large the fleet
+  is, and it is switched off entirely — not merely slowed — for anyone who has
+  asked for reduced motion.
 
 ## Known limitations and improvements
 
