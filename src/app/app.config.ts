@@ -1,8 +1,6 @@
-import { DOCUMENT } from '@angular/common';
 import { provideHttpClient, withFetch } from '@angular/common/http';
 import {
   ApplicationConfig,
-  inject,
   isDevMode,
   provideBrowserGlobalErrorListeners,
 } from '@angular/core';
@@ -15,11 +13,11 @@ import { routes } from './app.routes';
 const DEV_FEED_URL = '/api/gbfs/free_bike_status.json';
 
 /**
- * The GitHub Pages demo is static: no proxy, and the feed sends no CORS header,
- * so production replays a captured snapshot instead. Resolved against
- * `baseURI` because the site is served from a repository subpath.
+ * GitHub Pages is static and cannot proxy, so production reads the feed through
+ * the Cloudflare Worker in `worker/`, which adds the missing CORS header. See
+ * `worker/README.md` for deploy and rollback.
  */
-const PROD_FEED_PATH = 'gbfs/free_bike_status.json';
+const PROD_FEED_URL = 'https://gbfs-proxy.fernandoespana-dev.workers.dev/';
 
 export const appConfig: ApplicationConfig = {
   providers: [
@@ -28,10 +26,7 @@ export const appConfig: ApplicationConfig = {
     provideHttpClient(withFetch()),
     {
       provide: GBFS_FEED_URL,
-      useFactory: () =>
-        isDevMode()
-          ? DEV_FEED_URL
-          : new URL(PROD_FEED_PATH, inject(DOCUMENT).baseURI).toString(),
+      useFactory: () => (isDevMode() ? DEV_FEED_URL : PROD_FEED_URL),
     },
   ],
 };

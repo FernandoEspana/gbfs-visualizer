@@ -44,7 +44,7 @@ for a production deployment.
 | -------- | ---------------------------------------------------------------------------- |
 | Endpoint | `https://data.lime.bike/api/partners/v2/gbfs/new_york/free_bike_status.json` |
 | Via app  | `/api/gbfs/free_bike_status.json` (dev proxy)                                |
-| In prod  | `gbfs/free_bike_status.json` (captured snapshot — see below)                 |
+| In prod  | Cloudflare Worker adding the missing CORS header — see below                 |
 | GBFS     | 2.2 · `ttl` 60s                                                              |
 | Payload  | ~3,100 free-floating scooters, ~700 KB                                       |
 | Coverage | Queens and the Bronx — `lat 40.666–40.911`, `lon -73.884–-73.744`            |
@@ -59,22 +59,28 @@ This project therefore uses Lime New York, which serves the same feed type with
 live data. This deviation is deliberate and is the reason the mapper is written
 against the GBFS _shape_ rather than one provider.
 
-### The live demo replays a snapshot
+### The live demo goes through a CORS proxy
 
 Live demo: **https://fernandoespana.github.io/gbfs-visualizer/**
 
 The feed sends no `Access-Control-Allow-Origin` header, so a browser cannot call
-it directly, and GitHub Pages is static hosting with no way to proxy. The
-deployed build therefore reads `public/gbfs/free_bike_status.json`, a snapshot of
-the real feed captured on 2026-07-30 (3,416 vehicles). Polling, TTL scheduling,
-retry and re-render all run exactly as they do against the live endpoint — the
-payload simply does not change between ticks, so vehicles do not move.
+it directly, and GitHub Pages is static hosting with no way to proxy. Production
+therefore reads the feed through a Cloudflare Worker (`worker/`) that fetches
+upstream and adds the header. It reshapes nothing: `GbfsMapper` remains the only
+translation boundary, and the worker caches for 60s, the feed's own `ttl`, so any
+number of viewers collapse into roughly one upstream request per minute. Deploy,
+verification and rollback steps are in [`worker/README.md`](worker/README.md).
 
 The switch is a single `useFactory` on `GBFS_FEED_URL` in `app.config.ts` keyed
-off `isDevMode()`; the URL is resolved against `document.baseURI` because Pages
-serves the app from a repository subpath. `npm start` is unaffected and remains
-fully live. Restoring live data in production means pointing that one provider at
-a CORS-enabled proxy — nothing else in the app knows where the feed comes from.
+off `isDevMode()` — `npm start` still goes through `proxy.conf.json` and is
+unaffected. Nothing else in the app knows where the feed comes from, which is the
+point of the token.
+
+An earlier deploy replayed `public/gbfs/free_bike_status.json`, a snapshot of the
+real feed captured on 2026-07-30 (3,416 vehicles). It is still committed as the
+rollback path: pointing `PROD_FEED_URL` back at it restores a working, if frozen,
+demo. Its drawback is what motivated the worker — the payload never changes, so
+`last_updated` ages visibly and the UI truthfully reports a snapshot hours old.
 
 ## Architecture
 
@@ -689,10 +695,10 @@ npx ng test --filter '^GbfsMapper'        # by suite/test name
 ## Known limitations and improvements
 
 - **CORS / production deploy.** The feed sends no `Access-Control-Allow-Origin`,
-  so the dev proxy has no equivalent in a static production build. The GitHub
-  Pages demo replays a captured snapshot instead of the live feed; a genuinely
-  live deploy needs a small serverless function or reverse proxy in front of the
-  feed.
+  so the dev proxy has no equivalent in a static production build. Production
+  goes through the Cloudflare Worker in `worker/`, which means the demo depends
+  on a second deploy target, on a free-tier quota, and on an origin allowlist
+  that has to be updated if the site ever moves.
 - **Uniform vehicle state.** The live feed reports every vehicle as available,
   non-reserved and non-disabled. Reserved/disabled rendering paths are therefore
   implemented and unit-tested against synthetic payloads rather than observed
@@ -742,10 +748,12 @@ documented above rather than summarised away:
   bundle exports a lone `default` when optimized, so destructuring the namespace
   works under `ng serve` and yields `undefined` in production. Both are written
   up in [Loading the library](#loading-the-library).
-- **Deploying a feed with no CORS header to static hosting.** GitHub Pages
-  cannot proxy, so the deploy replays a captured snapshot behind a single
-  `GBFS_FEED_URL` factory, and the URL had to be resolved against
-  `document.baseURI` for the repository subpath.
+- **Deploying a feed with no CORS header to static hosting.** GitHub Pages cannot
+  proxy. The first deploy replayed a captured snapshot behind a single
+  `GBFS_FEED_URL` factory, resolved against `document.baseURI` for the repository
+  subpath; the frozen `last_updated` that produced is what led to the Cloudflare
+  Worker in `worker/`. The factory absorbed both changes without any other file
+  moving, which is the boundary doing its job.
 
 ## AI usage
 
