@@ -1,0 +1,6 @@
+name = "gbfs-proxy"
+main = "src/index.js"
+compatibility_date = "2026-08-03"
+
+# No bindings, no secrets, no state: the worker is a pure pass-through and can be
+# redeployed or deleted without touching anything else.
